@@ -6,7 +6,7 @@ export const elevatorService = {
   getElevatorById: (id) => apiClient.get(`/elevators/${id}`),
   getElevatorStats: (id) => apiClient.get(`/elevators/${id}/stats`),
   addElevator: (data) => apiClient.post('/elevators', data),
-  updateElevator: (id, data) => apiClient.patch(`/elevators/${id}`, data),
+  updateElevator: (id, data) => apiClient.put(`/elevators/${id}`, data),
   deleteElevator: (id) => apiClient.delete(`/elevators/${id}`),
   
   // Client Elevators - مصاعد العميل

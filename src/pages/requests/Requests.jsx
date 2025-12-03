@@ -39,6 +39,8 @@ import { formatDate, formatDateTime, getTimeDifference } from '../../utils/dateH
 
 const Requests = () => {
   const { showToast } = useToast();
+  
+  // استخدام useRequests مع القيم الافتراضية
   const {
     requests,
     loading,
@@ -50,7 +52,8 @@ const Requests = () => {
     assignTechnician,
     updateStatus,
     updatePagination,
-    refetch
+    refetch,
+    updateFilters
   } = useRequests();
 
   // States
@@ -88,7 +91,15 @@ const Requests = () => {
       priority: priorityFilter !== 'all' ? priorityFilter : undefined,
       sortBy: sortBy
     };
-    fetchRequests(params);
+    
+    // إزالة الحقول غير المعرفة
+    Object.keys(params).forEach(key => {
+      if (params[key] === undefined || params[key] === '') {
+        delete params[key];
+      }
+    });
+    
+    updateFilters(params);
   };
 
   const handleFilterChange = (e) => {
@@ -134,12 +145,34 @@ const Requests = () => {
     setAddRequestError(null);
 
     try {
-      await createRequest(requestData);
+      // تحويل البيانات للتنسيق المناسب للـ API
+      const formattedData = {
+        clientId: parseInt(requestData.clientId),
+        elevatorId: parseInt(requestData.elevatorId),
+        contractId: requestData.contractId ? parseInt(requestData.contractId) : undefined,
+        priority: requestData.priority,
+        requestType: requestData.requestType,
+        description: requestData.description,
+        accessDetails: requestData.accessDetails || undefined,
+        locationLat: requestData.locationLat || undefined,
+        locationLng: requestData.locationLng || undefined,
+        scheduledDate: requestData.scheduledDate || undefined
+      };
+
+      // إزالة الحقول غير المعرفة
+      Object.keys(formattedData).forEach(key => {
+        if (formattedData[key] === undefined) {
+          delete formattedData[key];
+        }
+      });
+
+      await createRequest(formattedData);
       showToast('تم إضافة طلب الصيانة بنجاح', 'success');
       setShowAddModal(false);
     } catch (err) {
-      setAddRequestError(err.response?.data?.message || 'فشل إضافة طلب الصيانة');
-      showToast('فشل إضافة طلب الصيانة', 'error');
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || 'فشل إضافة طلب الصيانة';
+      setAddRequestError(errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setAddRequestLoading(false);
     }
@@ -149,12 +182,13 @@ const Requests = () => {
     if (!requestToAssign) return;
 
     try {
-      await assignTechnician(requestToAssign.id, technicianId);
+      await assignTechnician(requestToAssign.id, parseInt(technicianId));
       showToast('تم تعيين الفني بنجاح', 'success');
       setShowAssignModal(false);
       setRequestToAssign(null);
     } catch (err) {
-      showToast('فشل تعيين الفني', 'error');
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || 'فشل تعيين الفني';
+      showToast(errorMessage, 'error');
     }
   };
 
@@ -168,7 +202,8 @@ const Requests = () => {
       setRequestToUpdateStatus(null);
       setSelectedStatus('');
     } catch (err) {
-      showToast('فشل تحديث حالة الطلب', 'error');
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || 'فشل تحديث حالة الطلب';
+      showToast(errorMessage, 'error');
       console.error('Error updating status:', err);
     }
   };
@@ -497,8 +532,6 @@ const Requests = () => {
         </Card>
       </div>
 
-      {/* نسبة الإنجاز تمت إزالتها حسب طلب المستخدم */}
-
       {/* قائمة طلبات الصيانة */}
       {requests.length === 0 ? (
         <Card className="shadow-sm">
@@ -554,7 +587,7 @@ const Requests = () => {
                         </div>
                         <div>
                           <p className="font-bold text-gray-900 text-sm truncate">
-                            {request.client?.user?.fullName || 'غير معروف'}
+                            {request.client?.user?.fullName || request.clientName || 'غير معروف'}
                           </p>
                           {request.client?.user?.phoneNumber && (
                             <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
@@ -579,7 +612,7 @@ const Requests = () => {
                           </div>
                           <div>
                             <p className="font-bold text-gray-900 text-sm truncate">
-                              {request.assignedTechnician.user?.fullName || 'فني غير معروف'}
+                              {request.assignedTechnician.user?.fullName || request.technicianName || 'فني غير معروف'}
                             </p>
                             {request.assignedTechnician.user?.phoneNumber && (
                               <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
@@ -614,19 +647,19 @@ const Requests = () => {
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-600">الموديل:</span>
                           <span className="text-sm font-medium text-gray-900 truncate">
-                            {request.elevator?.modelNumber || 'بدون موديل'}
+                            {request.elevator?.modelNumber || request.elevatorModel || 'بدون موديل'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-600">التسلسلي:</span>
                           <span className="text-sm font-medium text-gray-900 truncate">
-                            {request.elevator?.serialNumber || 'بدون رقم تسلسلي'}
+                            {request.elevator?.serialNumber || request.elevatorSerial || 'بدون رقم تسلسلي'}
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
                           <MapPin size={12} className="text-gray-400 flex-shrink-0" />
                           <span className="text-xs text-gray-600 truncate">
-                            {request.elevator?.locationAddress || 'لا يوجد عنوان'}
+                            {request.elevator?.locationAddress || request.locationAddress || 'لا يوجد عنوان'}
                           </span>
                         </div>
                       </div>
@@ -916,31 +949,35 @@ const Requests = () => {
                           <User size={16} className="text-gray-400" />
                           <div>
                             <p className="font-medium text-gray-900">
-                              {selectedRequest.client?.user?.fullName}
+                              {selectedRequest.client?.user?.fullName || selectedRequest.clientName}
                             </p>
                             <p className="text-sm text-gray-500">العميل</p>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <Phone size={16} className="text-gray-400" />
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {selectedRequest.client?.user?.phoneNumber}
-                            </p>
-                            <p className="text-sm text-gray-500">رقم الهاتف</p>
+                        {selectedRequest.client?.user?.phoneNumber && (
+                          <div className="flex items-center gap-2">
+                            <Phone size={16} className="text-gray-400" />
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {selectedRequest.client.user.phoneNumber}
+                              </p>
+                              <p className="text-sm text-gray-500">رقم الهاتف</p>
+                            </div>
                           </div>
-                        </div>
+                        )}
 
-                        <div className="flex items-center gap-2">
-                          <Mail size={16} className="text-gray-400" />
-                          <div>
-                            <p className="font-medium text-gray-900 truncate">
-                              {selectedRequest.client?.user?.email}
-                            </p>
-                            <p className="text-sm text-gray-500">البريد الإلكتروني</p>
+                        {selectedRequest.client?.user?.email && (
+                          <div className="flex items-center gap-2">
+                            <Mail size={16} className="text-gray-400" />
+                            <div>
+                              <p className="font-medium text-gray-900 truncate">
+                                {selectedRequest.client.user.email}
+                              </p>
+                              <p className="text-sm text-gray-500">البريد الإلكتروني</p>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
 
@@ -949,14 +986,14 @@ const Requests = () => {
                       <div className="space-y-3">
                         <div>
                           <p className="font-medium text-gray-900">
-                            {selectedRequest.elevator?.modelNumber}
+                            {selectedRequest.elevator?.modelNumber || selectedRequest.elevatorModel}
                           </p>
                           <p className="text-sm text-gray-500">رقم الموديل</p>
                         </div>
 
                         <div>
                           <p className="font-medium text-gray-900">
-                            {selectedRequest.elevator?.serialNumber}
+                            {selectedRequest.elevator?.serialNumber || selectedRequest.elevatorSerial}
                           </p>
                           <p className="text-sm text-gray-500">الرقم التسلسلي</p>
                         </div>
@@ -965,7 +1002,7 @@ const Requests = () => {
                           <MapPin size={16} className="text-gray-400" />
                           <div>
                             <p className="font-medium text-gray-900">
-                              {selectedRequest.elevator?.locationAddress}
+                              {selectedRequest.elevator?.locationAddress || selectedRequest.locationAddress}
                             </p>
                             <p className="text-sm text-gray-500">العنوان</p>
                           </div>
@@ -1006,13 +1043,15 @@ const Requests = () => {
                       </div>
                       <div className="flex-1">
                         <h5 className="font-bold text-gray-900">
-                          {selectedRequest.assignedTechnician.user?.fullName}
+                          {selectedRequest.assignedTechnician.user?.fullName || selectedRequest.technicianName}
                         </h5>
                         <div className="flex items-center gap-4 mt-2">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Phone size={14} className="text-gray-400" />
-                            <span>{selectedRequest.assignedTechnician.user?.phoneNumber}</span>
-                          </div>
+                          {selectedRequest.assignedTechnician.user?.phoneNumber && (
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Phone size={14} className="text-gray-400" />
+                              <span>{selectedRequest.assignedTechnician.user.phoneNumber}</span>
+                            </div>
+                          )}
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <MapPin size={14} className="text-gray-400" />
                             <span>

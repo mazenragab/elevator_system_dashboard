@@ -1,13 +1,31 @@
 import apiClient from './apiClient';
 
 export const maintenanceService = {
-  getAllRequests: (params) => apiClient.get('/maintenance', { params }),
+  getAllRequests: (params) => {
+    // تنظيف البارامترات
+    const cleanParams = {};
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== '') {
+        cleanParams[key] = params[key];
+      }
+    });
+    return apiClient.get('/maintenance', { params: cleanParams });
+  },
   
   getRequestById: (id) => apiClient.get(`/maintenance/${id}`),
   
   getRequestReport: (id) => apiClient.get(`/maintenance/${id}/report`),
   
-  createRequest: (data) => apiClient.post('/maintenance', data),
+  createRequest: (data) => {
+    // تنظيف البيانات
+    const cleanData = {};
+    Object.keys(data).forEach(key => {
+      if (data[key] !== undefined && data[key] !== '') {
+        cleanData[key] = data[key];
+      }
+    });
+    return apiClient.post('/maintenance', cleanData);
+  },
   
   updateRequest: (id, data) => apiClient.put(`/maintenance/${id}`, data),
   
@@ -16,11 +34,18 @@ export const maintenanceService = {
   assignTechnician: (id, technicianId) => 
     apiClient.patch(`/maintenance/${id}/assign`, { technicianId }),
   
-  updateRequestStatus: (id, status) => 
-    apiClient.patch(`/maintenance/${id}/status`, { status }),
+  updateRequestStatus: (id, statusData) => 
+    apiClient.patch(`/maintenance/${id}/status`, statusData),
   
-  getTechnicianRequests: (params) => apiClient.get('/maintenance/technician/my-requests', { params }),
+  getTechnicianRequests: (params) => {
+    const cleanParams = {};
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== '') {
+        cleanParams[key] = params[key];
+      }
+    });
+    return apiClient.get('/maintenance/technician/my-requests', { params: cleanParams });
+  },
   
   createReport: (id, data) => apiClient.post(`/maintenance/${id}/report`, data),
-  
 };

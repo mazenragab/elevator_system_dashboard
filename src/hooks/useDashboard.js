@@ -22,8 +22,8 @@ export const useDashboard = () => {
       // استخدم getStats بدلاً من Promise.all لتجنب كثرة الطلبات
       const statsResponse = await managerService.getStats();
       
-      if (statsResponse.data?.data) {
-        const statsData = statsResponse.data.data;
+      if (statsResponse.data) {
+        const statsData = statsResponse.data;
         setDashboardData(statsData);
         setStats(statsData);
       }
@@ -39,8 +39,8 @@ export const useDashboard = () => {
     try {
       const response = await managerService.getPendingRequests();
       
-      if (response.data?.data) {
-        setPendingRequests(response.data.data);
+      if (response.data) {
+        setPendingRequests(response.data);
       }
     } catch (err) {
       console.error('Error fetching pending requests:', err);
@@ -55,25 +55,25 @@ export const useDashboard = () => {
       switch (type) {
         case 'requests':
           response = await managerService.getRequestsAnalytics(params);
-          setAnalytics(prev => ({ ...prev, requests: response.data?.data }));
+          setAnalytics(prev => ({ ...prev, requests: response.data }));
           break;
         case 'clients':
           response = await managerService.getClientsAnalytics(params);
-          setAnalytics(prev => ({ ...prev, clients: response.data?.data }));
+          setAnalytics(prev => ({ ...prev, clients: response.data }));
           break;
         case 'elevators':
           response = await managerService.getElevatorsAnalytics(params);
-          setAnalytics(prev => ({ ...prev, elevators: response.data?.data }));
+          setAnalytics(prev => ({ ...prev, elevators: response.data }));
           break;
         case 'technicians':
           response = await managerService.getTechnicians(params);
-          setAnalytics(prev => ({ ...prev, technicians: response.data?.data }));
+          setAnalytics(prev => ({ ...prev, technicians: response.data }));
           break;
         default:
           throw new Error('Invalid analytics type');
       }
       
-      return response.data?.data;
+      return response.data;
     } catch (err) {
       setError(err.message);
       throw err;
@@ -93,9 +93,9 @@ export const useDashboard = () => {
       ]);
       
       setAnalytics({
-        requests: requests.data?.data,
-        clients: clients.data?.data,
-        elevators: elevators.data?.data,
+        requests: requests.data,
+        clients: clients.data,
+        elevators: elevators.data,
         technicians: null
       });
     } catch (err) {
