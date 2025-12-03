@@ -152,24 +152,6 @@ const Profile = () => {
             <Button variant="outline" className="w-full justify-between">
               <span>تغيير كلمة المرور</span>
             </Button>
-            <Button variant="outline" className="w-full justify-between">
-              <span>تحقق بخطوتين</span>
-              <span className="text-gray-400">غير مفعل</span>
-            </Button>
-          </div>
-        </Card>
-        
-        <Card title="جلسات النشاط">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <p className="font-medium">هذا الجهاز</p>
-                <p className="text-sm text-gray-500">Chrome على Windows</p>
-              </div>
-              <Button variant="outline" size="sm">
-                إنهاء الجلسة
-              </Button>
-            </div>
           </div>
         </Card>
       </div>

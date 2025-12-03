@@ -16,6 +16,7 @@ import Technicians from './pages/technicians/Technicians';
 import Requests from './pages/requests/Requests';
 import Elevators from './pages/elevators/Elevators';
 import Reports from './pages/reports/Reports';
+import Profile from './pages/Profile';
 import Unauthorized from './pages/Unauthorized';
 import NotFound from './pages/NotFound';
 
@@ -40,6 +41,7 @@ function App() {
                   </PrivateRoute>
                 }>
                   <Route index element={<Navigate to="/dashboard" replace />} />
+                  <Route path="profile" element={<Profile />} />
                   <Route path="dashboard" element={<Dashboard />} />
                   <Route path="clients" element={<Clients />} />
                   <Route path="elevators" element={<Elevators />} />
