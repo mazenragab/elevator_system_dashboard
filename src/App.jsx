@@ -14,6 +14,7 @@ import Clients from './pages/clients/Clients';
 import CreateContract from './pages/contracts/CreateContract';
 import Technicians from './pages/technicians/Technicians';
 import Requests from './pages/requests/Requests';
+import Elevators from './pages/elevators/Elevators';
 import Reports from './pages/reports/Reports';
 import Unauthorized from './pages/Unauthorized';
 import NotFound from './pages/NotFound';
@@ -41,6 +42,7 @@ function App() {
                   <Route index element={<Navigate to="/dashboard" replace />} />
                   <Route path="dashboard" element={<Dashboard />} />
                   <Route path="clients" element={<Clients />} />
+                  <Route path="elevators" element={<Elevators />} />
                   <Route path="contracts/create" element={<CreateContract />} />
                   <Route path="technicians" element={<Technicians />} />
                   <Route path="requests" element={<Requests />} />

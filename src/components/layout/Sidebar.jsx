@@ -9,7 +9,9 @@ import {
   LogOut,
   Bell,
   HelpCircle,
-  ChevronLeft
+  ChevronLeft,
+  ArrowUpDown,
+  UserCog 
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -20,7 +22,8 @@ const Sidebar = () => {
     { icon: <LayoutDashboard size={20} />, label: 'لوحة التحكم', path: '/dashboard' },
     {icon: <FileText size={20} />, label: 'العقود', path: '/contracts' },
     { icon: <Users size={20} />, label: 'العملاء', path: '/clients' },
-    { icon: <Users size={20} />, label: 'الفنيين', path: '/technicians' },
+    { icon: <UserCog  size={20} />, label: 'الفنيين', path: '/technicians' },
+    { icon: <ArrowUpDown size={20} />, label: 'المصاعد', path: '/elevators' },
     { icon: <Wrench size={20} />, label: 'طلبات الصيانة', path: '/requests' },
     { icon: <BarChart3 size={20} />, label: 'التقارير', path: '/reports' },
     { icon: <Settings size={20} />, label: 'الإعدادات', path: '/settings' },
