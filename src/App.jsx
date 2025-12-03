@@ -14,6 +14,7 @@ import Clients from './pages/clients/Clients';
 import CreateContract from './pages/contracts/CreateContract';
 import Technicians from './pages/technicians/Technicians';
 import Requests from './pages/requests/Requests';
+import Contracts from './pages/contracts/Contracts';
 import Elevators from './pages/elevators/Elevators';
 import Reports from './pages/reports/Reports';
 import Profile from './pages/Profile';
@@ -45,6 +46,7 @@ function App() {
                   <Route path="dashboard" element={<Dashboard />} />
                   <Route path="clients" element={<Clients />} />
                   <Route path="elevators" element={<Elevators />} />
+                  <Route path="contracts" element={<Contracts />} />
                   <Route path="contracts/create" element={<CreateContract />} />
                   <Route path="technicians" element={<Technicians />} />
                   <Route path="requests" element={<Requests />} />
