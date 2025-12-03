@@ -10,7 +10,7 @@ export const elevatorService = {
   deleteElevator: (id) => apiClient.delete(`/elevators/${id}`),
   
   // Client Elevators - مصاعد العميل
-  getClientElevators: (clientId, params) => apiClient.get(`/clients/${clientId}/elevators`, { params }),
+  getClientElevators: (clientId, params) => apiClient.get(`/elevators/clients/${clientId}/`, { params }),
   
   // Elevator Maintenance - صيانة المصاعد
   getElevatorRequests: (id, params) => apiClient.get(`/elevators/${id}/requests`, { params }),
