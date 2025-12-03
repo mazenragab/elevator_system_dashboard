@@ -1,21 +1,23 @@
 import apiClient from './apiClient';
 
 export const clientService = {
-  // Manager Only
+  // Manager Routes - إدارة العملاء
   getAllClients: (params) => apiClient.get('/clients', { params }),
-  
   getClientById: (id) => apiClient.get(`/clients/${id}`),
+  getClientStats: (id) => apiClient.get(`/clients/${id}/stats`),
+  addClient: (data) => apiClient.post('/clients', data),
+  updateClient: (id, data) => apiClient.patch(`/clients/${id}`, data),
+  deleteClient: (id) => apiClient.delete(`/clients/${id}`),
   
-  getClientStats: (params) => apiClient.get('/clients/stats', { params }),
+  // Client Contracts - عقود العميل
+  getClientContracts: (id, params) => apiClient.get(`/clients/${id}/contracts`, { params }),
   
-  // Client Only (للمستقبل)
+  // Client Requests - طلبات العميل
+  getClientRequests: (id, params) => apiClient.get(`/clients/${id}/requests`, { params }),
+  
+  // Client Profile Routes - بروفايل العميل
   getMyProfile: () => apiClient.get('/clients/profile/me'),
-  
   updateMyProfile: (data) => apiClient.patch('/clients/profile/me', data),
-  
-  getMyElevators: () => apiClient.get('/clients/elevators/me'),
-  
-  getMyContracts: () => apiClient.get('/clients/contracts/me'),
-  
-  getMyStats: () => apiClient.get('/clients/stats/me'),
+  getMyContracts: () => apiClient.get('/clients/my/contracts'),
+  getMyRequests: () => apiClient.get('/clients/my/requests'),
 };

@@ -160,7 +160,7 @@ const Requests = () => {
 
   const handleUpdateStatus = async () => {
     if (!requestToUpdateStatus || !selectedStatus) return;
-    
+
     try {
       await updateStatus(requestToUpdateStatus.id, { status: selectedStatus });
       showToast('تم تحديث حالة الطلب بنجاح', 'success');
@@ -363,9 +363,9 @@ const Requests = () => {
               variant="outline"
               onClick={handleRefresh}
               className="border-gray-300 hover:bg-gray-50"
+              aria-label="Refresh"
             >
-              <RefreshCw size={18} className="mr-2" />
-              تحديث
+              <RefreshCw size={18} />
             </Button>
             <Button
               variant="primary"
@@ -497,19 +497,7 @@ const Requests = () => {
         </Card>
       </div>
 
-      {/* نسبة الإنجاز */}
-      <Card className="p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-gray-900">نسبة إنجاز الطلبات</h3>
-          <span className="text-2xl font-bold text-emerald-600">{statistics.completionRate}%</span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2.5">
-          <div
-            className="bg-emerald-600 h-2.5 rounded-full transition-all duration-500"
-            style={{ width: `${statistics.completionRate}%` }}
-          ></div>
-        </div>
-      </Card>
+      {/* نسبة الإنجاز تمت إزالتها حسب طلب المستخدم */}
 
       {/* قائمة طلبات الصيانة */}
       {requests.length === 0 ? (
@@ -534,6 +522,7 @@ const Requests = () => {
               return (
                 <Card key={request.id} className="shadow-sm hover:shadow-lg transition-all duration-300">
                   <div className="p-6">
+                    {/* العنوان والأيقونات */}
                     <div className="flex items-start justify-between mb-4">
                       <div>
                         <h3 className="font-bold text-gray-900 truncate">
@@ -553,74 +542,133 @@ const Requests = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-3 mb-6">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <User size={16} className="text-gray-400 flex-shrink-0" />
-                        <span className="truncate">{request.client?.user?.fullName || 'غير معروف'}</span>
+                    {/* معلومات العميل - مع تنسيق مميز */}
+                    <div className="mb-4 p-3 bg-blue-50 rounded-lg border-r-4 border-blue-400">
+                      <div className="flex items-center gap-2 mb-2">
+                        <User size={16} className="text-blue-600 flex-shrink-0" />
+                        <span className="text-sm font-medium text-blue-800">العميل</span>
                       </div>
-
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Wrench size={16} className="text-gray-400 flex-shrink-0" />
-                        <span className="truncate">
-                          {request.elevator?.modelNumber || 'بدون موديل'} - {request.elevator?.serialNumber || 'بدون رقم تسلسلي'}
-                        </span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <User size={14} className="text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900 text-sm truncate">
+                            {request.client?.user?.fullName || 'غير معروف'}
+                          </p>
+                          {request.client?.user?.phoneNumber && (
+                            <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
+                              <Phone size={12} />
+                              {request.client.user.phoneNumber}
+                            </p>
+                          )}
+                        </div>
                       </div>
+                    </div>
 
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <MapPin size={16} className="text-gray-400 flex-shrink-0" />
-                        <span className="truncate">
-                          {request.elevator?.locationAddress || 'لا يوجد عنوان'}
-                        </span>
+                    {/* معلومات الفني المعين - مع تنسيق مختلف */}
+                    {request.assignedTechnician ? (
+                      <div className="mb-4 p-3 bg-green-50 rounded-lg border-r-4 border-green-400">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Wrench size={16} className="text-green-600 flex-shrink-0" />
+                          <span className="text-sm font-medium text-green-800">الفني المعين</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                            <Wrench size={14} className="text-green-600" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-900 text-sm truncate">
+                              {request.assignedTechnician.user?.fullName || 'فني غير معروف'}
+                            </p>
+                            {request.assignedTechnician.user?.phoneNumber && (
+                              <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
+                                <Phone size={12} />
+                                {request.assignedTechnician.user.phoneNumber}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
+                    ) : (
+                      <div className="mb-4 p-3 bg-gray-100 rounded-lg border-r-4 border-gray-300">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                            <User size={14} className="text-gray-500" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-700">لم يتم تعيين فني</p>
+                            <p className="text-xs text-gray-500 mt-1">في انتظار التعيين</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
-                      {request.assignedTechnician && (
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <User size={16} className="text-gray-400 flex-shrink-0" />
-                          <span className="truncate">
-                            {request.assignedTechnician.user?.fullName || 'فني غير معروف'}
+                    {/* معلومات المصعد */}
+                    <div className="mb-6 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <MapPin size={16} className="text-gray-500 flex-shrink-0" />
+                        <span className="text-sm font-medium text-gray-700">معلومات المصعد</span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-600">الموديل:</span>
+                          <span className="text-sm font-medium text-gray-900 truncate">
+                            {request.elevator?.modelNumber || 'بدون موديل'}
                           </span>
                         </div>
-                      )}
-
-                      {request.assignedAt && (
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Calendar size={16} className="text-gray-400 flex-shrink-0" />
-                          <span>تم التعيين: {formatDate(request.assignedAt)}</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-600">التسلسلي:</span>
+                          <span className="text-sm font-medium text-gray-900 truncate">
+                            {request.elevator?.serialNumber || 'بدون رقم تسلسلي'}
+                          </span>
                         </div>
-                      )}
+                        <div className="flex items-center gap-1">
+                          <MapPin size={12} className="text-gray-400 flex-shrink-0" />
+                          <span className="text-xs text-gray-600 truncate">
+                            {request.elevator?.locationAddress || 'لا يوجد عنوان'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
                     {request.description && (
                       <div className="mb-6 pt-4 border-t border-gray-200">
-                        <p className="text-sm text-gray-600 line-clamp-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          <FileText size={16} className="text-gray-400 flex-shrink-0" />
+                          <span className="text-sm font-medium text-gray-700">وصف المشكلة</span>
+                        </div>
+                        <p className="text-sm text-gray-600 line-clamp-2 bg-gray-50 p-3 rounded">
                           {request.description}
                         </p>
                       </div>
                     )}
 
+                    {/* الإحصائيات */}
                     <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-200">
                       <div className="text-center">
                         <div className="text-lg font-bold text-gray-900">
-                          {timeSinceCreation}
+                          {getTimeDifference(new Date(request.createdAt), new Date())}
                         </div>
                         <p className="text-xs text-gray-500 mt-1">منذ الإنشاء</p>
                       </div>
 
                       <div className="text-center">
                         <div className="text-lg font-bold text-gray-900">
-                          {hasReport ? 'نعم' : 'لا'}
+                          {!!request.report ? 'نعم' : 'لا'}
                         </div>
                         <p className="text-xs text-gray-500 mt-1">تقرير</p>
                       </div>
 
                       <div className="text-center">
-                        <div className="text-lg font-bold text-gray-900">
+                        <div className={`text-lg font-bold ${request.assignedTechnician ? 'text-green-600' : 'text-red-600'}`}>
                           {request.assignedTechnician ? 'مُعين' : 'غير معين'}
                         </div>
                         <p className="text-xs text-gray-500 mt-1">حالة التعيين</p>
                       </div>
                     </div>
 
+                    {/* الأزرار */}
                     <div className="flex gap-2 mt-6">
                       <Button
                         variant="outline"
@@ -647,14 +695,14 @@ const Requests = () => {
                           variant="outline"
                           className="flex-1 text-purple-600 border-purple-200 hover:bg-purple-50"
                           onClick={() => handleOpenStatusModal(request)}
+                          aria-label="Update status"
                         >
-                          <Clock size={16} className="mr-2" />
-                          تحديث
+                          <Clock size={16} />
                         </Button>
                       )}
                     </div>
 
-                    {hasReport && (
+                    {!!request.report && (
                       <Button
                         variant="ghost"
                         className="w-full mt-3 text-sm text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"

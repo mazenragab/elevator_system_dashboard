@@ -6,6 +6,7 @@ export const routes = {
     { path: '/', name: 'الرئيسية', component: 'Dashboard', icon: 'Home' },
     { path: '/dashboard', name: 'لوحة التحكم', component: 'Dashboard', icon: 'LayoutDashboard' },
     { path: '/contracts', name: 'العقود', component: 'Contracts', icon: 'FileText' },
+    { path: '/clients', name: 'العملاء', component: 'Clients', icon: 'Users' },
     { path: '/contracts/create', name: 'إنشاء عقد', component: 'CreateContract' },
     { path: '/contracts/:id', name: 'تفاصيل العقد', component: 'ContractDetails' },
     { path: '/technicians', name: 'الفنيين', component: 'Technicians', icon: 'Users' },
@@ -18,7 +19,7 @@ export const routes = {
 };
 
 export const rolePermissions = {
-  MANAGER: ['dashboard', 'contracts', 'technicians', 'requests', 'reports', 'settings'],
+  MANAGER: ['dashboard', 'contracts', 'technicians', 'requests', 'reports', 'settings', 'clients'],
   TECHNICIAN: ['dashboard', 'requests'],
   CLIENT: ['dashboard', 'requests']
 };

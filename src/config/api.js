@@ -14,13 +14,4 @@ export const ENDPOINTS = {
     REFRESH: '/auth/refresh',
     PROFILE: '/auth/profile'
   },
-  MANAGER: {
-    DASHBOARD: '/manager/dashboard',
-    CONTRACTS: '/manager/contracts',
-    TECHNICIANS: '/manager/technicians',
-    REQUESTS: '/manager/requests',
-    REPORTS: '/manager/reports',
-    ELEVATORS: '/manager/elevators',
-    CLIENTS: '/manager/clients'
-  }
 };

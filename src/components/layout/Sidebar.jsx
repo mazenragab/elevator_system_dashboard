@@ -18,7 +18,8 @@ const Sidebar = () => {
 
   const menuItems = [
     { icon: <LayoutDashboard size={20} />, label: 'لوحة التحكم', path: '/dashboard' },
-    { icon: <FileText size={20} />, label: 'العقود', path: '/contracts' },
+    {icon: <FileText size={20} />, label: 'العقود', path: '/contracts' },
+    { icon: <Users size={20} />, label: 'العملاء', path: '/clients' },
     { icon: <Users size={20} />, label: 'الفنيين', path: '/technicians' },
     { icon: <Wrench size={20} />, label: 'طلبات الصيانة', path: '/requests' },
     { icon: <BarChart3 size={20} />, label: 'التقارير', path: '/reports' },
