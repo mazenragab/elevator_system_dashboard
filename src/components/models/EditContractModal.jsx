@@ -1,14 +1,11 @@
-// src/components/modals/EditContractModal.jsx
 import { useState, useEffect } from 'react';
-import { FileText, Calendar, Clock, AlertCircle } from 'lucide-react';
-import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../forms/Input';
 import Select from '../forms/Select';
-import { useToast } from '../../hooks/useToast';
+import Loading from '../ui/Loading';
+import { Check, X, AlertTriangle } from 'lucide-react';
 
-const EditContractModal = ({ isOpen, onClose, contract, onSubmit, isLoading }) => {
-  const { showToast } = useToast();
+const EditContractForm = ({ contract, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     contractNumber: '',
     contractType: '',
@@ -16,290 +13,337 @@ const EditContractModal = ({ isOpen, onClose, contract, onSubmit, isLoading }) =
     endDate: '',
     slaResponseTimeHours: '',
     slaResolutionTimeHours: '',
-    isActive: ''
+    isActive: true
   });
 
-  const [validationErrors, setValidationErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [hasChanges, setHasChanges] = useState(false);
 
+  // Initialize form with contract data
   useEffect(() => {
     if (contract) {
-      const startDate = contract.startDate ? new Date(contract.startDate).toISOString().split('T')[0] : '';
-      const endDate = contract.endDate ? new Date(contract.endDate).toISOString().split('T')[0] : '';
-      
       setFormData({
         contractNumber: contract.contractNumber || '',
-        contractType: contract.contractType || '',
-        startDate: startDate,
-        endDate: endDate,
-        slaResponseTimeHours: contract.slaResponseTimeHours?.toString() || '24',
-        slaResolutionTimeHours: contract.slaResolutionTimeHours?.toString() || '72',
-        isActive: contract.isActive?.toString() || 'true'
+        contractType: contract.contractType || 'FULL_MAINTENANCE',
+        startDate: contract.startDate ? new Date(contract.startDate).toISOString().split('T')[0] : '',
+        endDate: contract.endDate ? new Date(contract.endDate).toISOString().split('T')[0] : '',
+        slaResponseTimeHours: contract.slaResponseTimeHours || 24,
+        slaResolutionTimeHours: contract.slaResolutionTimeHours || '',
+        isActive: contract.isActive || true
       });
     }
   }, [contract]);
 
-  const validateForm = () => {
-    const errors = {};
-    
-    if (!formData.contractNumber) {
-      errors.contractNumber = 'رقم العقد مطلوب';
-    }
-    
-    if (!formData.contractType) {
-      errors.contractType = 'نوع العقد مطلوب';
-    }
-    
-    if (!formData.startDate) {
-      errors.startDate = 'تاريخ البدء مطلوب';
-    }
-    
-    if (!formData.endDate) {
-      errors.endDate = 'تاريخ الانتهاء مطلوب';
-    } else if (new Date(formData.endDate) <= new Date(formData.startDate)) {
-      errors.endDate = 'تاريخ الانتهاء يجب أن يكون بعد تاريخ البدء';
-    }
-    
-    if (!formData.slaResponseTimeHours) {
-      errors.slaResponseTimeHours = 'وقت الاستجابة مطلوب';
-    } else if (parseInt(formData.slaResponseTimeHours) <= 0) {
-      errors.slaResponseTimeHours = 'وقت الاستجابة يجب أن يكون أكبر من صفر';
-    }
-    
-    if (!formData.slaResolutionTimeHours) {
-      errors.slaResolutionTimeHours = 'وقت الحل مطلوب';
-    } else if (parseInt(formData.slaResolutionTimeHours) <= 0) {
-      errors.slaResolutionTimeHours = 'وقت الحل يجب أن يكون أكبر من صفر';
-    }
-    
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
-    
-    if (validationErrors[name]) {
-      setValidationErrors(prev => ({
-        ...prev,
-        [name]: undefined
-      }));
-    }
+    setHasChanges(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleDateChange = (name, date) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: date
+    }));
+    setHasChanges(true);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) {
-      showToast('يرجى تصحيح الأخطاء في النموذج', 'error');
+    if (!hasChanges) {
+      onCancel();
       return;
     }
-    
-    const apiData = {
-      contractNumber: formData.contractNumber,
-      contractType: formData.contractType,
-      startDate: new Date(formData.startDate).toISOString(),
-      endDate: new Date(formData.endDate).toISOString(),
-      slaResponseTimeHours: parseInt(formData.slaResponseTimeHours),
-      slaResolutionTimeHours: parseInt(formData.slaResolutionTimeHours),
-      isActive: formData.isActive === 'true'
-    };
-    
-    onSubmit(contract.id, apiData);
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Validate dates
+      if (formData.startDate && formData.endDate) {
+        const start = new Date(formData.startDate);
+        const end = new Date(formData.endDate);
+        if (end <= start) {
+          throw new Error('تاريخ الإنتهاء يجب أن يكون بعد تاريخ البدء');
+        }
+      }
+
+      await onSubmit(contract.id, {
+        ...formData,
+        startDate: formData.startDate ? new Date(formData.startDate).toISOString() : undefined,
+        endDate: formData.endDate ? new Date(formData.endDate).toISOString() : undefined,
+        slaResolutionTimeHours: formData.slaResolutionTimeHours || null
+      });
+    } catch (err) {
+      setError(err.message || 'حدث خطأ أثناء تحديث العقد');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const formatContractType = (type) => {
-    const types = {
-      'FULL_MAINTENANCE': 'صيانة كاملة',
-      'PREVENTIVE_ONLY': 'صيانة وقائية',
-      'ON_DEMAND': 'حسب الطلب'
-    };
-    return types[type] || type;
+  const handleReset = () => {
+    setFormData({
+      contractNumber: contract.contractNumber || '',
+      contractType: contract.contractType || 'FULL_MAINTENANCE',
+      startDate: contract.startDate ? new Date(contract.startDate).toISOString().split('T')[0] : '',
+      endDate: contract.endDate ? new Date(contract.endDate).toISOString().split('T')[0] : '',
+      slaResponseTimeHours: contract.slaResponseTimeHours || 24,
+      slaResolutionTimeHours: contract.slaResolutionTimeHours || '',
+      isActive: contract.isActive || true
+    });
+    setHasChanges(false);
+    setError(null);
   };
 
-  if (!contract) return null;
+  if (!contract) {
+    return (
+      <div className="text-center py-8">
+        <Loading size="lg" />
+        <p className="text-gray-500 mt-4">جاري تحميل بيانات العقد...</p>
+      </div>
+    );
+  }
+
+  const daysRemaining = Math.ceil((new Date(contract.endDate) - new Date()) / (1000 * 60 * 60 * 24));
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="تعديل بيانات العقد"
-      size="lg"
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* معلومات العقد الأساسية */}
-        <div className="bg-gray-50 p-4 rounded-lg mb-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-500 mb-1">معرف العقد</label>
-              <p className="text-gray-900 font-medium">{contract.id}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-500 mb-1">العميل</label>
-              <p className="text-gray-900 font-medium">{contract.client?.user?.fullName || 'غير محدد'}</p>
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-500 mb-1">نوع العقد الحالي</label>
-              <p className="text-gray-900 font-medium">{formatContractType(contract.contractType)}</p>
-            </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* معلومات العقد الحالية */}
+      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-blue-800">عقد #{contract.contractNumber}</h4>
+            <p className="text-sm text-blue-600">
+              العميل: {contract.client?.user?.fullName || 'غير محدد'}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-blue-600">
+              {contract._count?.contractElevators || 0} مصاعد
+            </p>
+            <p className={`text-sm font-medium ${daysRemaining <= 30 ? 'text-red-600' : 'text-green-600'}`}>
+              {daysRemaining} يوم متبقي
+            </p>
           </div>
         </div>
+      </div>
 
-        {/* تحذير */}
-        <div className="flex items-start gap-2 text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-200">
-          <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
-          <p className="text-sm">
-            تغيير تواريخ العقد قد يؤثر على العقود والمصاعد المرتبطة
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="text-red-500" size={18} />
+            <p className="text-red-600 text-sm">{error}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* رقم العقد */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            رقم العقد
+          </label>
+          <Input
+            name="contractNumber"
+            value={formData.contractNumber}
+            onChange={handleInputChange}
+            placeholder="رقم العقد"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            يجب أن يكون فريداً
           </p>
         </div>
 
-        {/* حقول التعديل */}
-        <div className="space-y-4">
-          <Input
-            label="رقم العقد *"
-            name="contractNumber"
-            value={formData.contractNumber}
-            onChange={handleChange}
-            required
-            error={validationErrors.contractNumber}
-            leftIcon={<FileText size={18} />}
-            placeholder="CTR-2024-XXXX"
-          />
-          
+        {/* نوع العقد */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            نوع العقد
+          </label>
           <Select
-            label="نوع العقد *"
             name="contractType"
             value={formData.contractType}
-            onChange={handleChange}
-            required
-            error={validationErrors.contractType}
+            onChange={handleInputChange}
             options={[
-              { value: '', label: 'اختر نوع العقد' },
               { value: 'FULL_MAINTENANCE', label: 'صيانة كاملة' },
               { value: 'PREVENTIVE_ONLY', label: 'صيانة وقائية' },
               { value: 'ON_DEMAND', label: 'حسب الطلب' }
             ]}
           />
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="تاريخ البدء *"
-              name="startDate"
-              type="date"
-              value={formData.startDate}
-              onChange={handleChange}
-              required
-              error={validationErrors.startDate}
-              leftIcon={<Calendar size={18} />}
-            />
-            
-            <Input
-              label="تاريخ الانتهاء *"
-              name="endDate"
-              type="date"
-              value={formData.endDate}
-              onChange={handleChange}
-              required
-              error={validationErrors.endDate}
-              leftIcon={<Calendar size={18} />}
-            />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="وقت الاستجابة (ساعة) *"
-              name="slaResponseTimeHours"
-              type="number"
-              min="1"
-              value={formData.slaResponseTimeHours}
-              onChange={handleChange}
-              required
-              error={validationErrors.slaResponseTimeHours}
-              leftIcon={<Clock size={18} />}
-            />
-            
-            <Input
-              label="وقت الحل (ساعة) *"
-              name="slaResolutionTimeHours"
-              type="number"
-              min="1"
-              value={formData.slaResolutionTimeHours}
-              onChange={handleChange}
-              required
-              error={validationErrors.slaResolutionTimeHours}
-              leftIcon={<Clock size={18} />}
-            />
-          </div>
-          
+        </div>
+
+        {/* تاريخ البدء */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            تاريخ البدء
+          </label>
+          <Input
+            type="date"
+            name="startDate"
+            value={formData.startDate}
+            onChange={(e) => handleDateChange('startDate', e.target.value)}
+            min={new Date().toISOString().split('T')[0]}
+          />
+        </div>
+
+        {/* تاريخ الإنتهاء */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            تاريخ الإنتهاء
+          </label>
+          <Input
+            type="date"
+            name="endDate"
+            value={formData.endDate}
+            onChange={(e) => handleDateChange('endDate', e.target.value)}
+            min={formData.startDate}
+          />
+          {formData.endDate && formData.startDate && (
+            <p className="text-xs text-gray-500 mt-1">
+              مدة العقد: {Math.ceil((new Date(formData.endDate) - new Date(formData.startDate)) / (1000 * 60 * 60 * 24 * 30))} شهر
+            </p>
+          )}
+        </div>
+
+        {/* وقت الاستجابة SLA */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            وقت الاستجابة (ساعة)
+          </label>
           <Select
-            label="حالة العقد"
-            name="isActive"
-            value={formData.isActive}
-            onChange={handleChange}
+            name="slaResponseTimeHours"
+            value={formData.slaResponseTimeHours}
+            onChange={handleInputChange}
             options={[
-              { value: 'true', label: 'نشط' },
-              { value: 'false', label: 'غير نشط' }
+              { value: 1, label: '1 ساعة' },
+              { value: 2, label: '2 ساعة' },
+              { value: 4, label: '4 ساعات' },
+              { value: 8, label: '8 ساعات' },
+              { value: 24, label: '24 ساعة' },
+              { value: 48, label: '48 ساعة' }
             ]}
           />
         </div>
 
-        {/* معلومات إضافية */}
-        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-          <h4 className="font-bold text-sm text-gray-700 mb-2">معلومات العقد الحالية:</h4>
-          <div className="grid grid-cols-2 gap-4">
+        {/* وقت الحل SLA */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            وقت الحل (ساعة)
+          </label>
+          <Select
+            name="slaResolutionTimeHours"
+            value={formData.slaResolutionTimeHours}
+            onChange={handleInputChange}
+            options={[
+              { value: '', label: 'غير محدد' },
+              { value: 24, label: '24 ساعة' },
+              { value: 48, label: '48 ساعة' },
+              { value: 72, label: '72 ساعة' },
+              { value: 168, label: 'أسبوع (168 ساعة)' }
+            ]}
+          />
+        </div>
+      </div>
+
+      {/* الحالة */}
+      <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+        <input
+          type="checkbox"
+          id="isActive"
+          name="isActive"
+          checked={formData.isActive}
+          onChange={handleInputChange}
+          className="h-4 w-4 text-blue-600 rounded border-gray-300"
+        />
+        <div>
+          <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
+            حالة العقد
+          </label>
+          <p className="text-xs text-gray-500">
+            {formData.isActive ? 'العقد نشط وقابل للاستخدام' : 'العقد غير نشط'}
+          </p>
+        </div>
+      </div>
+
+      {/* معلومات المصاعد */}
+      <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="font-medium text-amber-800">المصاعد المشمولة</h4>
+            <p className="text-sm text-amber-600">
+              {contract._count?.contractElevators || 0} مصاعد مرتبطة بالعقد
+            </p>
+          </div>
+          <div className="text-sm text-amber-600">
+            {contract._count?.maintenanceRequests || 0} طلبات صيانة
+          </div>
+        </div>
+        <p className="text-xs text-amber-600 mt-2">
+          ملاحظة: لا يمكن تعديل المصاعد من هنا. استخدم قسم "المصاعد" لإضافة أو إزالة مصاعد.
+        </p>
+      </div>
+
+      {/* أزرار الإجراءات */}
+      <div className="flex gap-3 justify-between pt-6 border-t border-gray-200">
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleReset}
+            disabled={!hasChanges || loading}
+          >
+            إعادة تعيين
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={loading}
+          >
+            <X size={18} className="mr-2" />
+            إلغاء
+          </Button>
+        </div>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={!hasChanges || loading}
+          className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800"
+        >
+          {loading ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              جاري التحديث...
+            </>
+          ) : (
+            <>
+              <Check size={18} className="mr-2" />
+              حفظ التغييرات
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* تحذيرات */}
+      {hasChanges && (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="text-yellow-500" size={18} />
             <div>
-              <label className="block text-xs text-gray-500 mb-1">المصاعد المشمولة</label>
-              <p className="text-sm font-medium">{contract._count?.contractElevators || 0}</p>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">طلبات الصيانة</label>
-              <p className="text-sm font-medium">{contract._count?.maintenanceRequests || 0}</p>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">المستندات</label>
-              <p className="text-sm font-medium">{contract._count?.contractDocuments || 0}</p>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">تاريخ الإنشاء</label>
-              <p className="text-sm font-medium">
-                {contract.createdAt ? new Date(contract.createdAt).toLocaleDateString('ar-SA') : 'غير محدد'}
+              <h4 className="text-sm font-medium text-yellow-800">تحذير</h4>
+              <p className="text-xs text-yellow-600 mt-1">
+                أي تغييرات في تاريخ العقد قد تؤثر على الصلاحية والتغطية
               </p>
             </div>
           </div>
         </div>
-
-        <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={isLoading}
-          >
-            إلغاء
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={isLoading}
-            className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800"
-          >
-            {isLoading ? (
-              <>
-                <span className="animate-spin mr-2">⟳</span>
-                جاري التحديث...
-              </>
-            ) : (
-              'تحديث بيانات العقد'
-            )}
-          </Button>
-        </div>
-      </form>
-    </Modal>
+      )}
+    </form>
   );
 };
 
-export default EditContractModal;
+export default EditContractForm;

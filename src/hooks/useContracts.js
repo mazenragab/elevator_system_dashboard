@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { managerService } from '../services/managerService';
-import { contractService } from '../services/contractService'; // إضافة الاستيراد
+import { contractService } from '../services/contractService';
 
 export const useContracts = () => {
   const [contracts, setContracts] = useState([]);
@@ -19,37 +18,41 @@ export const useContracts = () => {
       setLoading(true);
       setError(null);
       
-      // استخدام خدمة العقود بدلاً من خدمة المدير مباشرة
+      // استخدام خدمة العقود الجديدة
       const response = await contractService.getAllContracts({
         page: params.page || pagination.page,
         limit: params.limit || pagination.limit,
-        ...params
+        clientId: params.clientId,
+        isActive: params.isActive,
+        contractType: params.contractType,
+        search: params.search
       });
       
       if (response.data) {
-        setContracts(response.data);
+        setContracts(response.data || response.data || []);
         setPagination({
-          page: response.page || 1,
-          limit: response.limit || 10,
-          total: response.total || 0,
-          totalPages: response.totalPages || 1
+          page: response.meta?.page || response.page || 1,
+          limit: response.meta?.limit || response.limit || 10,
+          total: response.meta?.total || response.total || 0,
+          totalPages: response.meta?.totalPages || response.totalPages || 1
         });
       }
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message || 'حدث خطأ في تحميل العقود');
       console.error('Error fetching contracts:', err);
     } finally {
       setLoading(false);
     }
   }, [pagination.page, pagination.limit]);
+
   const fetchContractById = async (id) => {
     try {
       setLoading(true);
-      const response = await managerService.getContractById(id);
-      setSelectedContractDetails(response.data);
-      return response.data;
+      const response = await contractService.getContractById(id);
+      setSelectedContractDetails(response.data || response.data);
+      return response.data || response.data;
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message || 'حدث خطأ في تحميل العقد');
       throw err;
     } finally {
       setLoading(false);
@@ -58,28 +61,91 @@ export const useContracts = () => {
 
   const createContract = async (contractData) => {
     try {
-      const response = await managerService.addContract(contractData);
-      return response.data;
+      const response = await contractService.createContract(contractData);
+      return response.data.data || response.data;
     } catch (err) {
-      throw err;
+      throw new Error(err.response?.data?.message || err.message || 'حدث خطأ في إنشاء العقد');
     }
   };
 
   const updateContract = async (id, contractData) => {
     try {
-      const response = await managerService.updateContract(id, contractData);
-      return response.data;
+      const response = await contractService.updateContract(id, contractData);
+      return response.data.data || response.data;
     } catch (err) {
-      throw err;
+      throw new Error(err.response?.data?.message || err.message || 'حدث خطأ في تحديث العقد');
     }
   };
 
   const deleteContract = async (id) => {
     try {
-      const response = await managerService.deleteContract(id);
-      return response.data;
+      const response = await contractService.deleteContract(id);
+      return response.data.data || response.data;
     } catch (err) {
-      throw err;
+      throw new Error(err.response?.data?.message || err.message || 'حدث خطأ في حذف العقد');
+    }
+  };
+
+  const activateContract = async (id) => {
+    try {
+      const response = await contractService.activateContract(id);
+      return response.data.data || response.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || err.message || 'حدث خطأ في تفعيل العقد');
+    }
+  };
+
+  const deactivateContract = async (id) => {
+    try {
+      const response = await contractService.suspendContract(id);
+      return response.data.data || response.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || err.message || 'حدث خطأ في تعطيل العقد');
+    }
+  };
+
+  const getContractElevators = async (contractId) => {
+    try {
+      const response = await contractService.getContractElevators(contractId);
+      return response.data.data || response.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || err.message || 'حدث خطأ في تحميل مصاعد العقد');
+    }
+  };
+
+  const getContractDocuments = async (contractId) => {
+    try {
+      const response = await contractService.getContractDocuments(contractId);
+      return response.data.data || response.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || err.message || 'حدث خطأ في تحميل مستندات العقد');
+    }
+  };
+
+  const uploadContractDocument = async (contractId, formData) => {
+    try {
+      const response = await contractService.uploadContractDocument(contractId, formData);
+      return response.data.data || response.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || err.message || 'حدث خطأ في رفع المستند');
+    }
+  };
+
+  const deleteContractDocument = async (contractId, documentId) => {
+    try {
+      const response = await contractService.deleteContractDocument(contractId, documentId);
+      return response.data.data || response.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || err.message || 'حدث خطأ في حذف المستند');
+    }
+  };
+
+  const checkContractCoverage = async (contractId, elevatorId) => {
+    try {
+      const response = await contractService.checkContractCoverage(contractId, { elevatorId });
+      return response.data.data || response.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || err.message || 'حدث خطأ في التحقق من التغطية');
     }
   };
 
@@ -109,6 +175,13 @@ export const useContracts = () => {
     createContract,
     updateContract,
     deleteContract,
+    activateContract,
+    deactivateContract,
+    getContractElevators,
+    getContractDocuments,
+    uploadContractDocument,
+    deleteContractDocument,
+    checkContractCoverage,
     changePage,
     changeLimit,
     refetch: fetchContracts

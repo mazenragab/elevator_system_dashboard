@@ -11,7 +11,6 @@ import RoleGuard from './components/common/RoleGuard';
 import Login from './pages/auth/Login';
 import Dashboard from './pages/dashboard/Dashboard';
 import Clients from './pages/clients/Clients';
-import CreateContract from './pages/contracts/CreateContract';
 import Technicians from './pages/technicians/Technicians';
 import Requests from './pages/requests/Requests';
 import Contracts from './pages/contracts/Contracts';
@@ -47,7 +46,6 @@ function App() {
                   <Route path="clients" element={<Clients />} />
                   <Route path="elevators" element={<Elevators />} />
                   <Route path="contracts" element={<Contracts />} />
-                  <Route path="contracts/create" element={<CreateContract />} />
                   <Route path="technicians" element={<Technicians />} />
                   <Route path="requests" element={<Requests />} />
                   <Route path="reports" element={<Reports />} />

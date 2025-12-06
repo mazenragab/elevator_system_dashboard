@@ -395,14 +395,6 @@ const Requests = () => {
         actions={
           <div className="flex flex-wrap gap-3">
             <Button
-              variant="outline"
-              onClick={handleRefresh}
-              className="border-gray-300 hover:bg-gray-50"
-              aria-label="Refresh"
-            >
-              <RefreshCw size={18} />
-            </Button>
-            <Button
               variant="primary"
               onClick={() => setShowAddModal(true)}
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
@@ -735,16 +727,7 @@ const Requests = () => {
                       )}
                     </div>
 
-                    {!!request.report && (
-                      <Button
-                        variant="ghost"
-                        className="w-full mt-3 text-sm text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                        onClick={() => handleDownloadReport(request.id)}
-                      >
-                        <FileText size={14} className="mr-2" />
-                        تحميل التقرير
-                      </Button>
-                    )}
+                   
                   </div>
                 </Card>
               );
