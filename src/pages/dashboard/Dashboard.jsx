@@ -123,14 +123,14 @@ const Dashboard = () => {
       iconColor: 'text-emerald-600',
       path: '/requests'
     },
-    { 
-      icon: <BarChart3 size={20} />, 
-      label: 'تقرير شهري', 
-      description: 'تحميل تقرير الأداء',
-      color: 'bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200',
-      iconColor: 'text-purple-600',
-      path: '/reports'
-    },
+    // { 
+    //   icon: <BarChart3 size={20} />, 
+    //   label: 'تقرير شهري', 
+    //   description: 'تحميل تقرير الأداء',
+    //   color: 'bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200',
+    //   iconColor: 'text-purple-600',
+    //   path: '/reports'
+    // },
     { 
       icon: <UserCheck size={20} />, 
       label: 'إدارة الفنيين', 
@@ -230,7 +230,7 @@ const Dashboard = () => {
         subtitle="نظرة عامة على نظام إدارة صيانة المصاعد"
         actions={
           <div className="flex flex-wrap gap-3">
-            <Button 
+            {/* <Button 
               variant="primary" 
               leftIcon={<BarChart3 size={18} />}
               onClick={handleGenerateReport}
@@ -238,7 +238,7 @@ const Dashboard = () => {
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
             >
               إنشاء تقرير
-            </Button>
+            </Button> */}
             <Button 
               variant="outline"
               onClick={() => fetchAllAnalytics()}
@@ -384,12 +384,12 @@ const Dashboard = () => {
                             </Badge>
                           </div>
                           
-                          <a href={`/requests/${req.id}`}>
+                          {/* <a href={`/requests/${req.id}`}>
                             <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 hover:bg-blue-50">
                               <Eye size={16} className="ml-1" />
                               عرض التفاصيل
                             </Button>
-                          </a>
+                          </a> */}
                         </div>
                       </div>
                     </div>
@@ -514,7 +514,7 @@ const Dashboard = () => {
       </div>
 
       {/* العملاء */}
-      {analytics.clients && analytics.clients.length > 0 && (
+      {/* {analytics.clients && analytics.clients.length > 0 && (
         <Card title="أفضل العملاء" className="border-0 shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -585,7 +585,7 @@ const Dashboard = () => {
             </table>
           </div>
         </Card>
-      )}
+      )} */}
     </div>
   );
 };

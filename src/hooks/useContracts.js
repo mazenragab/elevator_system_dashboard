@@ -1,6 +1,6 @@
-// src/hooks/useContracts.js
 import { useState, useEffect, useCallback } from 'react';
 import { managerService } from '../services/managerService';
+import { contractService } from '../services/contractService'; // إضافة الاستيراد
 
 export const useContracts = () => {
   const [contracts, setContracts] = useState([]);
@@ -12,15 +12,17 @@ export const useContracts = () => {
     total: 0,
     totalPages: 1
   });
+  const [selectedContractDetails, setSelectedContractDetails] = useState(null);
 
   const fetchContracts = useCallback(async (params = {}) => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await managerService.getAllContracts({
-        page: pagination.page,
-        limit: pagination.limit,
+      // استخدام خدمة العقود بدلاً من خدمة المدير مباشرة
+      const response = await contractService.getAllContracts({
+        page: params.page || pagination.page,
+        limit: params.limit || pagination.limit,
         ...params
       });
       
@@ -40,11 +42,11 @@ export const useContracts = () => {
       setLoading(false);
     }
   }, [pagination.page, pagination.limit]);
-
   const fetchContractById = async (id) => {
     try {
       setLoading(true);
       const response = await managerService.getContractById(id);
+      setSelectedContractDetails(response.data);
       return response.data;
     } catch (err) {
       setError(err.message);
@@ -54,16 +56,45 @@ export const useContracts = () => {
     }
   };
 
+  const createContract = async (contractData) => {
+    try {
+      const response = await managerService.addContract(contractData);
+      return response.data;
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  const updateContract = async (id, contractData) => {
+    try {
+      const response = await managerService.updateContract(id, contractData);
+      return response.data;
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  const deleteContract = async (id) => {
+    try {
+      const response = await managerService.deleteContract(id);
+      return response.data;
+    } catch (err) {
+      throw err;
+    }
+  };
+
   useEffect(() => {
     fetchContracts();
   }, [fetchContracts]);
 
   const changePage = (newPage) => {
     setPagination(prev => ({ ...prev, page: newPage }));
+    fetchContracts({ page: newPage });
   };
 
   const changeLimit = (newLimit) => {
     setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }));
+    fetchContracts({ limit: newLimit, page: 1 });
   };
 
   return {
@@ -71,8 +102,13 @@ export const useContracts = () => {
     loading,
     error,
     pagination,
+    selectedContractDetails,
+    setSelectedContractDetails,
     fetchContracts,
     fetchContractById,
+    createContract,
+    updateContract,
+    deleteContract,
     changePage,
     changeLimit,
     refetch: fetchContracts
