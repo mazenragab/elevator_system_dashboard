@@ -123,14 +123,14 @@ const Dashboard = () => {
       iconColor: 'text-emerald-600',
       path: '/requests'
     },
-    // { 
-    //   icon: <BarChart3 size={20} />, 
-    //   label: 'تقرير شهري', 
-    //   description: 'تحميل تقرير الأداء',
-    //   color: 'bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200',
-    //   iconColor: 'text-purple-600',
-    //   path: '/reports'
-    // },
+    { 
+      icon: <BarChart3 size={20} />, 
+      label: 'إدارة العملاء', 
+      description: 'عرض وتعديل العملاء',
+      color: 'bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200',
+      iconColor: 'text-purple-600',
+      path: '/clients'
+    },
     { 
       icon: <UserCheck size={20} />, 
       label: 'إدارة الفنيين', 
