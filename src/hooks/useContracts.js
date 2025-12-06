@@ -107,7 +107,9 @@ export const useContracts = () => {
   const getContractElevators = async (contractId) => {
     try {
       const response = await contractService.getContractElevators(contractId);
-      return response.data.data || response.data;
+      console.log(response);
+      
+      return response.data || response.data;
     } catch (err) {
       throw new Error(err.response?.data?.message || err.message || 'حدث خطأ في تحميل مصاعد العقد');
     }

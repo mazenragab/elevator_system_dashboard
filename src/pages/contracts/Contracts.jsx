@@ -299,7 +299,7 @@ const Contracts = () => {
   const handleLoadElevators = async (contractId) => {
     try {
       const result = await getContractElevators(contractId);
-      setElevators(result || []);
+      setElevators(result);
       setShowElevatorsModal(true);
     } catch (err) {
       showToast(err.message || 'فشل تحميل المصاعد', 'error');
@@ -462,13 +462,13 @@ const Contracts = () => {
         subtitle="إدارة عقود صيانة المصاعد"
         actions={
           <div className="flex flex-wrap gap-3">
-            <Button 
+            {/* <Button 
               variant="outline" 
               leftIcon={<Download size={18} />}
               onClick={handleExportContracts}
             >
               تصدير
-            </Button>
+            </Button> */}
             <Button 
               variant="primary"
               leftIcon={<Plus size={18} />} 
@@ -564,12 +564,12 @@ const Contracts = () => {
             >
               بحث
             </Button>
-            <Button
+            {/* <Button
               variant="outline"
               onClick={handleResetFilters}
             >
               إعادة ضبط
-            </Button>
+            </Button> */}
           </div>
         </div>
       </Card>

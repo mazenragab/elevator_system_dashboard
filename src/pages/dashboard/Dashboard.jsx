@@ -113,7 +113,7 @@ const Dashboard = () => {
       description: 'إضافة عقد صيانة جديد',
       color: 'bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200',
       iconColor: 'text-blue-600',
-      path: '/contracts/create'
+      path: '/contracts'
     },
     { 
       icon: <Wrench size={20} />, 

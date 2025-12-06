@@ -73,7 +73,7 @@ const ContractElevators = ({ contract, elevators: initialElevators, onClose }) =
     try {
       // Fetch maintenance history for this elevator
       const response = await apiClient.get(`/elevators/${elevator.elevatorId || elevator.id}/maintenance-requests`);
-      setMaintenanceHistory(response.data.data || response.data || []);
+      setMaintenanceHistory(response.data || response.data || []);
     } catch (err) {
       console.error('Error fetching maintenance history:', err);
     } finally {
@@ -236,7 +236,7 @@ const ContractElevators = ({ contract, elevators: initialElevators, onClose }) =
                         <div className="flex items-center gap-2 text-sm">
                           <MapPin size={16} className="text-gray-400" />
                           <span className="text-gray-600">
-                            الإحداثيات: {elevator.locationLat.toFixed(4)}, {elevator.locationLng.toFixed(4)}
+                            الإحداثيات: {elevator.locationLat}, {elevator.locationLng}
                           </span>
                         </div>
                       )}
@@ -250,13 +250,7 @@ const ContractElevators = ({ contract, elevators: initialElevators, onClose }) =
                       >
                         التفاصيل
                       </Button>
-                      <Button
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => window.open(`/elevators/${elevator.id}`, '_blank')}
-                      >
-                        صفحة المصعد
-                      </Button>
+
                     </div>
                   </div>
                 </Card>

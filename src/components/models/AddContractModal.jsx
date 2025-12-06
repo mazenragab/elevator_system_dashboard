@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import Button from '../ui/Button';
 import Input from '../forms/Input';
 import Select from '../forms/Select';
-// import DatePicker from '../forms/DatePicker';
-// import Loading from '../ui/Alert';
 import { Search, Plus, Trash2, Check, X } from 'lucide-react';
 import apiClient from '../../services/apiClient';
 
@@ -47,7 +45,9 @@ const AddContractForm = ({ onSubmit, isLoading, error, onCancel }) => {
     try {
       setLoadingClients(true);
       const response = await apiClient.get('/clients');
-      setClients(response.data.data || response.data);
+      // إصلاح: جلب البيانات من المكان الصحيح
+      const clientsData = response.data?.data || response.data || [];
+      setClients(Array.isArray(clientsData) ? clientsData : []);
     } catch (err) {
       console.error('Error fetching clients:', err);
     } finally {
@@ -58,12 +58,25 @@ const AddContractForm = ({ onSubmit, isLoading, error, onCancel }) => {
   const fetchElevatorsByClient = async (clientId) => {
     try {
       setLoadingElevators(true);
-      const response = await apiClient.get(`/clients/${clientId}/elevators`);
-      const clientElevators = response.data.data || response.data;
-      setElevators(clientElevators);
-      setAvailableElevators(clientElevators);
+      const response = await apiClient.get(`elevators/clients/${clientId}/`);
+      console.log('Elevators response:', response.data);
+      
+      // إصلاح: جلب المصاعد من الاستجابة الصحيحة
+      const elevatorsData = response.data?.data?.elevators || response.data?.elevators || [];
+      
+      // تأكد من أن البيانات مصفوفة
+      if (Array.isArray(elevatorsData)) {
+        setElevators(elevatorsData);
+        setAvailableElevators(elevatorsData);
+      } else {
+        console.error('Elevators data is not an array:', elevatorsData);
+        setElevators([]);
+        setAvailableElevators([]);
+      }
     } catch (err) {
       console.error('Error fetching elevators:', err);
+      setElevators([]);
+      setAvailableElevators([]);
     } finally {
       setLoadingElevators(false);
     }
@@ -119,11 +132,14 @@ const AddContractForm = ({ onSubmit, isLoading, error, onCancel }) => {
     client.user?.email?.toLowerCase().includes(searchClient.toLowerCase())
   );
 
-  const filteredAvailableElevators = availableElevators.filter(elevator =>
-    elevator.modelNumber?.toLowerCase().includes(searchElevator.toLowerCase()) ||
-    elevator.serialNumber?.toLowerCase().includes(searchElevator.toLowerCase()) ||
-    elevator.locationAddress?.toLowerCase().includes(searchElevator.toLowerCase())
-  );
+  // تأكد من أن availableElevators مصفوفة قبل استخدام filter
+  const filteredAvailableElevators = Array.isArray(availableElevators) 
+    ? availableElevators.filter(elevator =>
+        elevator.modelNumber?.toLowerCase().includes(searchElevator.toLowerCase()) ||
+        elevator.serialNumber?.toLowerCase().includes(searchElevator.toLowerCase()) ||
+        elevator.locationAddress?.toLowerCase().includes(searchElevator.toLowerCase())
+      )
+    : [];
 
   const calculateEndDate = (startDate, months = 12) => {
     if (!startDate) return '';
@@ -245,6 +261,7 @@ const AddContractForm = ({ onSubmit, isLoading, error, onCancel }) => {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             نوع العقد *
           </label>
+          {/* إصلاح: أزل leftIcon من Select أو عدّل مكون Select */}
           <Select
             name="contractType"
             value={formData.contractType}
