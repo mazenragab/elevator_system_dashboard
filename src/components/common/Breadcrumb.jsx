@@ -16,7 +16,8 @@ const Breadcrumb = () => {
     'settings': 'الإعدادات',
     'profile': 'الملف الشخصي',
     'elevators': 'المصاعد',
-    'clients': 'العملاء'
+    'clients': 'العملاء',
+    'notifications': 'الإشعارات',
   };
 
   return (

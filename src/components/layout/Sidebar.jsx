@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard,
   FileText,
@@ -13,9 +13,12 @@ import {
   UserCog
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useNotifications } from '../../hooks/useNotifications'; // إضافة الاستيراد
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications(); // استخدام unreadCount من الإشعارات
+  const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -51,6 +54,19 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     if (isMobile) {
       setIsOpen(false);
     }
+  };
+
+  const handleNotificationsClick = () => {
+    navigate('/notifications');
+    if (isMobile) {
+      setIsOpen(false);
+    }
+  };
+
+  // دالة لتنسيق عرض العدد
+  const formatUnreadCount = (count) => {
+    if (count > 99) return '99+';
+    return count.toString();
   };
 
   return (
@@ -118,12 +134,22 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
       {/* القائمة السفلية */}
       <div className="p-3 sm:p-4 border-t border-gray-800 space-y-0.5 sm:space-y-1">
-        <button className="flex items-center gap-2 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white w-full transition-all text-right">
+        {/* زر الإشعارات - يفتح صفحة الإشعارات الكاملة */}
+        <button 
+          onClick={handleNotificationsClick}
+          className="flex items-center gap-2 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white w-full transition-all text-right relative"
+        >
           <Bell size={18} className="flex-shrink-0 sm:w-5 sm:h-5" />
           <span className="font-medium flex-1 text-xs sm:text-sm truncate">الإشعارات</span>
-          <span className="bg-red-500 text-white text-[10px] sm:text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center flex-shrink-0">
-            3
-          </span>
+          
+          {/* بادج عدد الإشعارات غير المقروءة */}
+          {unreadCount > 0 && (
+            <span className="bg-red-500 text-white text-[10px] sm:text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center flex-shrink-0">
+              {formatUnreadCount(unreadCount)}
+            </span>
+          )}
+          
+          <ChevronLeft size={14} className="text-gray-400 flex-shrink-0 sm:w-4 sm:h-4" />
         </button>
         
         <button 
@@ -132,6 +158,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         >
           <LogOut size={18} className="flex-shrink-0 sm:w-5 sm:h-5" />
           <span className="font-medium flex-1 text-xs sm:text-sm truncate">تسجيل خروج</span>
+          <ChevronLeft size={14} className="text-gray-400 flex-shrink-0 sm:w-4 sm:h-4" />
         </button>
       </div>
     </aside>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Search, 
   Filter, 
@@ -101,6 +101,35 @@ const Contracts = () => {
     search: ''
   });
 
+  // Calculate days remaining - يتم تعريفه قبل useMemo
+  const getDaysRemaining = useCallback((endDate) => {
+    if (!endDate) return 0;
+    const now = new Date();
+    const end = new Date(endDate);
+    const days = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+    return days > 0 ? days : 0;
+  }, []);
+
+  // Format contract type
+  const formatContractType = useCallback((type) => {
+    const types = {
+      'FULL_MAINTENANCE': 'صيانة كاملة',
+      'PREVENTIVE_ONLY': 'صيانة وقائية',
+      'ON_DEMAND': 'حسب الطلب'
+    };
+    return types[type] || type;
+  }, []);
+
+  // Format date
+  const formatDate = useCallback((dateString) => {
+    if (!dateString) return 'غير محدد';
+    return new Date(dateString).toLocaleDateString('ar-SA', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }, []);
+
   // Filter contracts based on search and filters
   const filteredContracts = useMemo(() => {
     let result = [...contracts];
@@ -167,7 +196,7 @@ const Contracts = () => {
     }
 
     return result;
-  }, [contracts, filters, activeTab, sortBy]);
+  }, [contracts, filters, activeTab, sortBy, getDaysRemaining]);
 
   // Fetch contracts with filters
   const handleFetchContracts = () => {
@@ -290,7 +319,10 @@ const Contracts = () => {
 
   // Load contract documents
   const handleLoadDocuments = async (contractId) => {
-    setSelectedContract(contracts.find(c => c.id === contractId));
+    const contract = contracts.find(c => c.id === contractId);
+    if (!contract) return;
+    
+    setSelectedContract(contract);
     setShowDocumentsModal(true); // فتح الـ modal أولاً
     
     try {
@@ -304,7 +336,10 @@ const Contracts = () => {
 
   // Load contract elevators
   const handleLoadElevators = async (contractId) => {
-    setSelectedContract(contracts.find(c => c.id === contractId));
+    const contract = contracts.find(c => c.id === contractId);
+    if (!contract) return;
+    
+    setSelectedContract(contract);
     setShowElevatorsModal(true); // فتح الـ modal أولاً
     
     try {
@@ -352,34 +387,8 @@ const Contracts = () => {
     }
   };
 
-  // Export contracts
-  const handleExportContracts = async () => {
-    try {
-      const response = await contractService.exportContracts(filters);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `contracts-${new Date().toISOString().split('T')[0]}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      showToast('تم تصدير العقود بنجاح', 'success');
-    } catch (err) {
-      showToast('فشل تصدير العقود', 'error');
-    }
-  };
-
-  // Calculate days remaining
-  const getDaysRemaining = (endDate) => {
-    if (!endDate) return 0;
-    const now = new Date();
-    const end = new Date(endDate);
-    const days = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
-    return days > 0 ? days : 0;
-  };
-
   // Get status badge
-  const getStatusBadge = (contract) => {
+  const getStatusBadge = useCallback((contract) => {
     const now = new Date();
     const end = new Date(contract.endDate);
     
@@ -398,27 +407,7 @@ const Contracts = () => {
     }
     
     return <Badge variant="success" className="px-3 py-1">نشط</Badge>;
-  };
-
-  // Format contract type
-  const formatContractType = (type) => {
-    const types = {
-      'FULL_MAINTENANCE': 'صيانة كاملة',
-      'PREVENTIVE_ONLY': 'صيانة وقائية',
-      'ON_DEMAND': 'حسب الطلب'
-    };
-    return types[type] || type;
-  };
-
-  // Format date
-  const formatDate = (dateString) => {
-    if (!dateString) return 'غير محدد';
-    return new Date(dateString).toLocaleDateString('ar-SA', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
+  }, [getDaysRemaining]);
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -432,14 +421,14 @@ const Contracts = () => {
         const now = new Date();
         return endDate < now;
       }).length,
-      totalElevators: contracts.reduce((sum, contract) => sum + (contract.contractElevators.length || 0), 0),
+      totalElevators: contracts.reduce((sum, contract) => sum + (contract.contractElevators?.length || 0), 0),
       totalRequests: contracts.reduce((sum, contract) => sum + (contract._count?.maintenanceRequests || 0), 0),
       avgElevatorsPerContract: contracts.length > 0 ? 
         (contracts.reduce((sum, contract) => sum + (contract._count?.contractElevators || 0), 0) / contracts.length).toFixed(1) : 0
     };
     
     return result;
-  }, [contracts]);
+  }, [contracts, getDaysRemaining]);
 
   // If loading
   if (loading && contracts.length === 0) {
@@ -473,13 +462,6 @@ const Contracts = () => {
         subtitle="إدارة عقود صيانة المصاعد"
         actions={
           <div className="flex flex-wrap gap-3">
-            {/* <Button 
-              variant="outline" 
-              leftIcon={<Download size={18} />}
-              onClick={handleExportContracts}
-            >
-              تصدير
-            </Button> */}
             <Button 
               variant="primary"
               leftIcon={<Plus size={18} />} 
@@ -553,7 +535,7 @@ const Contracts = () => {
               { value: 'PREVENTIVE_ONLY', label: 'صيانة وقائية' },
               { value: 'ON_DEMAND', label: 'حسب الطلب' }
             ]}
-            leftIcon={<FileText size={18} />}
+            icon={<FileText size={18} />}
           />
           
           <Select
@@ -564,7 +546,7 @@ const Contracts = () => {
               { value: 'true', label: 'نشط' },
               { value: 'false', label: 'غير نشط' }
             ]}
-            leftIcon={<CheckCircle size={18} />}
+            icon={<CheckCircle size={18} />}
           />
           
           <div className="flex gap-2">
@@ -575,12 +557,6 @@ const Contracts = () => {
             >
               بحث
             </Button>
-            {/* <Button
-              variant="outline"
-              onClick={handleResetFilters}
-            >
-              إعادة ضبط
-            </Button> */}
           </div>
         </div>
       </Card>
@@ -932,7 +908,11 @@ const Contracts = () => {
           ) : selectedContractDetails ? (
             <div className="space-y-6">
               {/* Contract Details */}
-              <ContractDetailsView contract={selectedContractDetails} />
+              <ContractDetailsView 
+                contract={selectedContractDetails} 
+                getDaysRemaining={getDaysRemaining}
+                formatDate={formatDate}
+              />
               
               {/* Action Buttons */}
               <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">
@@ -1047,7 +1027,7 @@ const Contracts = () => {
 };
 
 // Helper Components
-const ContractDetailsView = ({ contract }) => (
+const ContractDetailsView = ({ contract, getDaysRemaining, formatDate }) => (
   <div className="space-y-6">
     <Card className="shadow-sm">
       <div className="p-6">
@@ -1111,14 +1091,14 @@ const ContractDetailsView = ({ contract }) => (
                   <p className="font-medium text-sm">من</p>
                   <p className="text-gray-600 flex items-center gap-2 mt-1">
                     <Calendar size={14} />
-                    {contract.startDate ? new Date(contract.startDate).toLocaleDateString('ar-SA') : 'غير محدد'}
+                    {contract.startDate ? formatDate(contract.startDate) : 'غير محدد'}
                   </p>
                 </div>
                 <div>
                   <p className="font-medium text-sm">إلى</p>
                   <p className="text-gray-600 flex items-center gap-2 mt-1">
                     <Calendar size={14} />
-                    {contract.endDate ? new Date(contract.endDate).toLocaleDateString('ar-SA') : 'غير محدد'}
+                    {contract.endDate ? formatDate(contract.endDate) : 'غير محدد'}
                   </p>
                 </div>
               </div>
@@ -1129,11 +1109,11 @@ const ContractDetailsView = ({ contract }) => (
               <div className="flex items-center gap-2">
                 <Clock size={16} className="text-gray-400" />
                 <span className={`text-lg font-bold ${
-                  Math.ceil((new Date(contract.endDate) - new Date()) / (1000 * 60 * 60 * 24)) <= 30 
+                  getDaysRemaining(contract.endDate) <= 30 
                     ? 'text-red-600' 
                     : 'text-green-600'
                 }`}>
-                  {Math.ceil((new Date(contract.endDate) - new Date()) / (1000 * 60 * 60 * 24))} يوم
+                  {getDaysRemaining(contract.endDate)} يوم
                 </span>
               </div>
             </div>
@@ -1157,7 +1137,7 @@ const ContractDetailsView = ({ contract }) => (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="text-center p-4 bg-blue-50 rounded-lg">
             <div className="text-2xl font-bold text-blue-600">
-              {contract.contractElevators.length}
+              {contract.contractElevators?.length || 0}
             </div>
             <p className="text-sm text-gray-600 mt-1">المصاعد المشمولة</p>
           </div>
@@ -1182,9 +1162,17 @@ const ContractDetailsView = ({ contract }) => (
 );
 
 const DeleteConfirmation = ({ contract, onConfirm, onCancel, isLoading }) => {
+  const getDaysRemaining = (endDate) => {
+    if (!endDate) return 0;
+    const now = new Date();
+    const end = new Date(endDate);
+    const days = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+    return days > 0 ? days : 0;
+  };
+
   const hasElevators = (contract._count?.contractElevators || 0) > 0;
   const hasRequests = (contract._count?.maintenanceRequests || 0) > 0;
-  const daysRemaining = Math.ceil((new Date(contract.endDate) - new Date()) / (1000 * 60 * 60 * 24));
+  const daysRemaining = getDaysRemaining(contract.endDate);
 
   return (
     <div className="space-y-4">
@@ -1211,7 +1199,7 @@ const DeleteConfirmation = ({ contract, onConfirm, onCancel, isLoading }) => {
              contract.contractType === 'PREVENTIVE_ONLY' ? 'صيانة وقائية' :
              contract.contractType === 'ON_DEMAND' ? 'حسب الطلب' : contract.contractType}
           </span></div>
-          <div>المصاعد: <span className="font-medium">{contract.contractElevators.length}</span></div>
+          <div>المصاعد: <span className="font-medium">{contract.contractElevators?.length || 0}</span></div>
           <div>طلبات الصيانة: <span className="font-medium">{contract._count?.maintenanceRequests || 0}</span></div>
           <div>المتبقي: <span className="font-medium">{daysRemaining} يوم</span></div>
         </div>
