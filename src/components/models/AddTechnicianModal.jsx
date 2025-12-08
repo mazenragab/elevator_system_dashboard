@@ -11,7 +11,8 @@ import {
   AlertCircle,
   Building,
   Navigation,
-  Hash
+  Hash,
+  CheckCircle
 } from 'lucide-react';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
@@ -24,6 +25,7 @@ const AddTechnicianModal = ({
   onClose, 
   onSubmit, 
   isLoading = false,
+  success = false,
   error = null 
 }) => {
   // حالة بيانات النموذج
@@ -92,7 +94,7 @@ const AddTechnicianModal = ({
   };
 
   // معالجة إرسال النموذج
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (validateForm()) {
@@ -107,7 +109,15 @@ const AddTechnicianModal = ({
         currentLocationLng: formData.currentLocationLng || null
       };
       
-      onSubmit(submitData);
+      // استدعاء onSubmit واستقبال النتيجة
+      const result = await onSubmit(submitData);
+      
+      if (result) {
+        // النجاح: تأخير إغلاق الـmodal لرؤية رسالة النجاح
+        setTimeout(() => {
+          handleClose();
+        }, 2000);
+      }
     }
   };
 
@@ -178,11 +188,26 @@ const AddTechnicianModal = ({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="إضافة فني جديد"
+      title={success ? "تم الإضافة بنجاح" : "إضافة فني جديد"}
       size="lg"
     >
       <form onSubmit={handleSubmit}>
-        {error && (
+        {/* عرض رسالة النجاح */}
+        {success && (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+              <CheckCircle className="w-10 h-10 text-emerald-600" />
+            </div>
+            <h3 className="text-xl font-bold text-emerald-900 mb-2">تمت الإضافة بنجاح!</h3>
+            <p className="text-emerald-700">
+              تم إضافة الفني <span className="font-bold">{formData.fullName}</span>
+            </p>
+            <p className="text-sm text-gray-500 mt-4 animate-pulse">يتم تحديث القائمة...</p>
+          </div>
+        )}
+
+        {/* عرض رسالة الخطأ */}
+        {error && !success && (
           <Card className="mb-6 border-red-200 bg-red-50">
             <div className="flex items-center gap-3 p-4">
               <AlertCircle className="text-red-600" size={20} />
@@ -191,233 +216,238 @@ const AddTechnicianModal = ({
           </Card>
         )}
 
-        {/* معلومات الفني الأساسية */}
-        <Card className="mb-6 border-0 shadow-sm">
-          <div className="p-6">
-            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <User size={20} className="text-blue-600" />
-              المعلومات الشخصية
-            </h3>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="الاسم الكامل"
-                  placeholder="أدخل الاسم الكامل"
-                  value={formData.fullName}
-                  onChange={(e) => handleInputChange('fullName', e.target.value)}
-                  error={errors.fullName}
-                  required
-                  leftIcon={<User size={18} />}
-                />
+        {/* إخفاء النموذج بعد النجاح */}
+        {!success && (
+          <>
+            {/* معلومات الفني الأساسية */}
+            <Card className="mb-6 border-0 shadow-sm">
+              <div className="p-6">
+                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <User size={20} className="text-blue-600" />
+                  المعلومات الشخصية
+                </h3>
                 
-                <Input
-                  label="البريد الإلكتروني"
-                  type="email"
-                  placeholder="example@domain.com"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  error={errors.email}
-                  required
-                  leftIcon={<Mail size={18} />}
-                />
-              </div>
-              
-              <Input
-                label="رقم الهاتف"
-                placeholder="مثال: 01234567890"
-                value={formData.phoneNumber}
-                onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                error={errors.phoneNumber}
-                required
-                leftIcon={<Phone size={18} />}
-              />
-            </div>
-          </div>
-        </Card>
-
-        {/* معلومات الموقع */}
-        <Card className="mb-6 border-0 shadow-sm">
-          <div className="p-6">
-            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <MapPin size={20} className="text-emerald-600" />
-              معلومات الموقع
-            </h3>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="خط العرض"
-                  placeholder="مثال: 30.0444"
-                  value={formData.currentLocationLat}
-                  onChange={(e) => handleInputChange('currentLocationLat', e.target.value)}
-                  error={errors.currentLocationLat}
-                  leftIcon={<Hash size={18} />}
-                  helperText="إحداثيات الموقع (اختياري)"
-                />
-                
-                <Input
-                  label="خط الطول"
-                  placeholder="مثال: 31.2357"
-                  value={formData.currentLocationLng}
-                  onChange={(e) => handleInputChange('currentLocationLng', e.target.value)}
-                  error={errors.currentLocationLng}
-                  leftIcon={<Hash size={18} />}
-                />
-              </div>
-              
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={getCurrentLocation}
-                  className="text-sm text-blue-600 border-blue-200 hover:bg-blue-50"
-                  leftIcon={<Navigation size={16} />}
-                >
-                  تحديد الموقع الحالي
-                </Button>
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={suggestRandomLocation}
-                  className="text-sm text-gray-600 border-gray-200 hover:bg-gray-50"
-                >
-                  اقتراح إحداثيات
-                </Button>
-              </div>
-              
-              <p className="text-xs text-gray-500 mt-2">
-                • يمكن ترك حقل الموقع فارغاً وسيتم تحديثه لاحقاً
-                <br />
-                • سيكون الموقع الظاهر للعملاء لأقرب فني متاح
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        {/* معلومات الحساب */}
-        <Card className="mb-6 border-0 shadow-sm">
-          <div className="p-6">
-            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <Shield size={20} className="text-purple-600" />
-              معلومات الحساب
-            </h3>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="كلمة المرور"
-                  type="password"
-                  placeholder="أدخل كلمة المرور"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
-                  error={errors.password}
-                  required
-                  leftIcon={<Key size={18} />}
-                />
-                
-                <Input
-                  label="تأكيد كلمة المرور"
-                  type="password"
-                  placeholder="أعد إدخال كلمة المرور"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                  error={errors.confirmPassword}
-                  required
-                  leftIcon={<Key size={18} />}
-                />
-              </div>
-              
-              <div className="pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={generatePassword}
-                  className="text-sm text-blue-600 border-blue-200 hover:bg-blue-50"
-                >
-                  توليد كلمة مرور آمنة
-                </Button>
-                
-                {formData.password && (
-                  <div className="mt-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1 rounded-full overflow-hidden bg-gray-200">
-                        <div 
-                          className={`h-full ${formData.password.length >= 12 ? 'bg-green-500' : 
-                            formData.password.length >= 8 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                          style={{ width: `${Math.min(100, (formData.password.length / 12) * 100)}%` }}
-                        />
-                      </div>
-                      <span className={`text-xs font-medium ${
-                        formData.password.length >= 12 ? 'text-green-600' : 
-                        formData.password.length >= 8 ? 'text-yellow-600' : 'text-red-600'
-                      }`}>
-                        {formData.password.length >= 12 ? 'قوية' : 
-                         formData.password.length >= 8 ? 'متوسطة' : 'ضعيفة'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      نوصي باستخدام 12 حرفًا على الأقل مع مزيج من الأحرف والأرقام والرموز
-                    </p>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="الاسم الكامل"
+                      placeholder="أدخل الاسم الكامل"
+                      value={formData.fullName}
+                      onChange={(e) => handleInputChange('fullName', e.target.value)}
+                      error={errors.fullName}
+                      required
+                      leftIcon={<User size={18} />}
+                    />
+                    
+                    <Input
+                      label="البريد الإلكتروني"
+                      type="email"
+                      placeholder="example@domain.com"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      error={errors.email}
+                      required
+                      leftIcon={<Mail size={18} />}
+                    />
                   </div>
+                  
+                  <Input
+                    label="رقم الهاتف"
+                    placeholder="مثال: 01234567890"
+                    value={formData.phoneNumber}
+                    onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                    error={errors.phoneNumber}
+                    required
+                    leftIcon={<Phone size={18} />}
+                  />
+                </div>
+              </div>
+            </Card>
+
+            {/* معلومات الموقع */}
+            <Card className="mb-6 border-0 shadow-sm">
+              <div className="p-6">
+                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <MapPin size={20} className="text-emerald-600" />
+                  معلومات الموقع
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="خط العرض"
+                      placeholder="مثال: 30.0444"
+                      value={formData.currentLocationLat}
+                      onChange={(e) => handleInputChange('currentLocationLat', e.target.value)}
+                      error={errors.currentLocationLat}
+                      leftIcon={<Hash size={18} />}
+                      helperText="إحداثيات الموقع (اختياري)"
+                    />
+                    
+                    <Input
+                      label="خط الطول"
+                      placeholder="مثال: 31.2357"
+                      value={formData.currentLocationLng}
+                      onChange={(e) => handleInputChange('currentLocationLng', e.target.value)}
+                      error={errors.currentLocationLng}
+                      leftIcon={<Hash size={18} />}
+                    />
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={getCurrentLocation}
+                      className="text-sm text-blue-600 border-blue-200 hover:bg-blue-50"
+                      leftIcon={<Navigation size={16} />}
+                    >
+                      تحديد الموقع الحالي
+                    </Button>
+                    
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={suggestRandomLocation}
+                      className="text-sm text-gray-600 border-gray-200 hover:bg-gray-50"
+                    >
+                      اقتراح إحداثيات
+                    </Button>
+                  </div>
+                  
+                  <p className="text-xs text-gray-500 mt-2">
+                    • يمكن ترك حقل الموقع فارغاً وسيتم تحديثه لاحقاً
+                    <br />
+                    • سيكون الموقع الظاهر للعملاء لأقرب فني متاح
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            {/* معلومات الحساب */}
+            <Card className="mb-6 border-0 shadow-sm">
+              <div className="p-6">
+                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <Shield size={20} className="text-purple-600" />
+                  معلومات الحساب
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="كلمة المرور"
+                      type="password"
+                      placeholder="أدخل كلمة المرور"
+                      value={formData.password}
+                      onChange={(e) => handleInputChange('password', e.target.value)}
+                      error={errors.password}
+                      required
+                      leftIcon={<Key size={18} />}
+                    />
+                    
+                    <Input
+                      label="تأكيد كلمة المرور"
+                      type="password"
+                      placeholder="أعد إدخال كلمة المرور"
+                      value={formData.confirmPassword}
+                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                      error={errors.confirmPassword}
+                      required
+                      leftIcon={<Key size={18} />}
+                    />
+                  </div>
+                  
+                  <div className="pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={generatePassword}
+                      className="text-sm text-blue-600 border-blue-200 hover:bg-blue-50"
+                    >
+                      توليد كلمة مرور آمنة
+                    </Button>
+                    
+                    {formData.password && (
+                      <div className="mt-2">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1 rounded-full overflow-hidden bg-gray-200">
+                            <div 
+                              className={`h-full ${formData.password.length >= 12 ? 'bg-green-500' : 
+                                formData.password.length >= 8 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                              style={{ width: `${Math.min(100, (formData.password.length / 12) * 100)}%` }}
+                            />
+                          </div>
+                          <span className={`text-xs font-medium ${
+                            formData.password.length >= 12 ? 'text-green-600' : 
+                            formData.password.length >= 8 ? 'text-yellow-600' : 'text-red-600'
+                          }`}>
+                            {formData.password.length >= 12 ? 'قوية' : 
+                            formData.password.length >= 8 ? 'متوسطة' : 'ضعيفة'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          نوصي باستخدام 12 حرفًا على الأقل مع مزيج من الأحرف والأرقام والرموز
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* معلومات النظام */}
+            <Card className="mb-6 shadow-sm bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
+              <div className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-white/50 rounded-lg">
+                    <Shield className="text-blue-600" size={20} />
+                  </div>
+                  <div className="text-right">
+                    <h4 className="font-bold text-blue-900 text-sm">معلومات النظام</h4>
+                    <ul className="mt-2 space-y-1 text-xs text-blue-700">
+                      <li>• سيتم إنشاء حساب من نوع "TECHNICIAN" في النظام</li>
+                      <li>• يمكن للفني تحديث موقعه وبياناته لاحقاً من تطبيق الفنيين</li>
+                      <li>• سيظهر الفني في قائمة الفنيين المتاحين فور الإنشاء</li>
+                      <li>• سيتم إرسال بيانات الدخول للفني عبر البريد الإلكتروني</li>
+                      <li>• يمكن للفني استقبال طلبات الصيانة عبر التطبيق</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* أزرار الإجراءات */}
+            <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                disabled={isLoading}
+              >
+                إلغاء
+              </Button>
+              
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={isLoading}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+              >
+                {isLoading ? (
+                  <>
+                    <span className="animate-spin mr-2">⟳</span>
+                    جاري الإضافة...
+                  </>
+                ) : (
+                  'إضافة الفني'
                 )}
-              </div>
+              </Button>
             </div>
-          </div>
-        </Card>
-
-        {/* معلومات النظام */}
-        <Card className="mb-6 shadow-sm bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
-          <div className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-white/50 rounded-lg">
-                <Shield className="text-blue-600" size={20} />
-              </div>
-              <div className="text-right">
-                <h4 className="font-bold text-blue-900 text-sm">معلومات النظام</h4>
-                <ul className="mt-2 space-y-1 text-xs text-blue-700">
-                  <li>• سيتم إنشاء حساب من نوع "TECHNICIAN" في النظام</li>
-                  <li>• يمكن للفني تحديث موقعه وبياناته لاحقاً من تطبيق الفنيين</li>
-                  <li>• سيظهر الفني في قائمة الفنيين المتاحين فور الإنشاء</li>
-                  <li>• سيتم إرسال بيانات الدخول للفني عبر البريد الإلكتروني</li>
-                  <li>• يمكن للفني استقبال طلبات الصيانة عبر التطبيق</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* أزرار الإجراءات */}
-        <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClose}
-            disabled={isLoading}
-          >
-            إلغاء
-          </Button>
-          
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={isLoading}
-            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-          >
-            {isLoading ? (
-              <>
-                <span className="animate-spin mr-2">⟳</span>
-                جاري الإضافة...
-              </>
-            ) : (
-              'إضافة الفني'
-            )}
-          </Button>
-        </div>
+          </>
+        )}
       </form>
     </Modal>
   );

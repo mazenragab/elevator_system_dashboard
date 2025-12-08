@@ -18,7 +18,8 @@ import {
   Clock,
   Navigation,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  CheckCircle
 } from 'lucide-react';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/ui/Card';
@@ -32,7 +33,6 @@ import { useTechnicians } from '../../hooks/useTechnicians';
 import { useToast } from '../../hooks/useToast';
 import AddTechnicianModal from '../../components/models/AddTechnicianModal';
 import { getSimpleLocationText } from '../../utils/location';
-
 
 const Technicians = () => {
   const { 
@@ -63,6 +63,7 @@ const Technicians = () => {
   const [technicianToDelete, setTechnicianToDelete] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [addTechnicianLoading, setAddTechnicianLoading] = useState(false);
+  const [addTechnicianSuccess, setAddTechnicianSuccess] = useState(false);
   const [addTechnicianError, setAddTechnicianError] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -148,6 +149,7 @@ const Technicians = () => {
       setTechnicianToDelete(null);
       // إعادة تحميل البيانات
       fetchTechnicians();
+      fetchAvailableTechnicians();
     } catch (err) {
       showToast(err.message || 'فشل حذف الفني', 'error');
     } finally {
@@ -159,19 +161,38 @@ const Technicians = () => {
   const handleAddTechnician = async (technicianData) => {
     setAddTechnicianLoading(true);
     setAddTechnicianError(null);
+    setAddTechnicianSuccess(false);
     
     try {
       await createTechnician(technicianData);
+      
+      // إعادة تحميل بيانات الفنيين
+      await fetchTechnicians();
+      await fetchAvailableTechnicians();
+      
+      // عرض toast النجاح
       showToast('تم إضافة الفني بنجاح', 'success');
-      setShowAddModal(false);
+      setAddTechnicianSuccess(true);
+      
+      // إرجاع true للإشارة إلى النجاح
+      return true;
     } catch (err) {
       setAddTechnicianError(err.message || 'فشل إضافة الفني');
       showToast('فشل إضافة الفني', 'error');
+      
+      // إرجاع false للإشارة إلى الفشل
+      return false;
     } finally {
       setAddTechnicianLoading(false);
     }
   };
 
+  // دالة إغلاق نافذة الإضافة
+  const handleCloseAddModal = () => {
+    setShowAddModal(false);
+    setAddTechnicianError(null);
+    setAddTechnicianSuccess(false);
+  };
 
   // دالة لحساب متوسط التقييم
   const calculateRating = (technician) => {
@@ -561,9 +582,10 @@ const Technicians = () => {
       {/* مودال إضافة فني جديد */}
       <AddTechnicianModal
         isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={handleCloseAddModal}
         onSubmit={handleAddTechnician}
         isLoading={addTechnicianLoading}
+        success={addTechnicianSuccess}
         error={addTechnicianError}
       />
 

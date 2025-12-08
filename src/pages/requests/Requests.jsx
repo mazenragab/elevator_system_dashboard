@@ -20,7 +20,11 @@ import {
   Navigation,
   RefreshCw,
   SortAsc,
-  SortDesc
+  SortDesc,
+  Tag,
+  Hash,
+  Building,
+  CalendarClock
 } from 'lucide-react';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/ui/Card';
@@ -58,7 +62,7 @@ const Requests = () => {
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [sortBy, setSortBy] = useState('createdAt_desc');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(9); // 9 عناصر في الصفحة (3x3 grid)
+  const [itemsPerPage] = useState(9);
 
   // States للـ Modals
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -247,7 +251,7 @@ const Requests = () => {
   const getStatusArabic = (status) => {
     const statusMap = {
       PENDING: 'معلق',
-      ASSIGNED: 'معين',
+      ASSIGNED: 'مُعين',
       ON_WAY: 'في الطريق',
       IN_PROGRESS: 'قيد التنفيذ',
       COMPLETED: 'مكتمل',
@@ -286,7 +290,7 @@ const Requests = () => {
     return colorMap[priority] || 'default';
   };
 
-  // مكون الـ Pagination
+  // مكون الـ Pagination - بالتصميم القديم
   const PaginationComponent = () => {
     if (paginationData.totalPages <= 1) return null;
 
@@ -304,78 +308,70 @@ const Requests = () => {
     }
 
     return (
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8">
-        {/* معلومات العرض */}
-        <div className="text-sm text-gray-600">
-          عرض {paginationData.startIndex + 1} - {Math.min(paginationData.endIndex, paginationData.total)} من {paginationData.total} طلب
-        </div>
+      <div className="flex items-center justify-center gap-2 mt-6">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="w-9 h-9 p-0"
+        >
+          <ChevronLeft size={16} />
+        </Button>
 
-        {/* أزرار الصفحات */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="w-9 h-9 p-0"
-          >
-            <ChevronLeft size={16} />
-          </Button>
-
-          {startPage > 1 && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(1)}
-                className="w-9 h-9"
-              >
-                1
-              </Button>
-              {startPage > 2 && (
-                <span className="px-2 text-gray-400">...</span>
-              )}
-            </>
-          )}
-
-          {pages.map((pageNum) => (
+        {startPage > 1 && (
+          <>
             <Button
-              key={pageNum}
-              variant={pageNum === currentPage ? "primary" : "outline"}
+              variant="outline"
               size="sm"
-              onClick={() => handlePageChange(pageNum)}
-              className={`w-9 h-9 ${pageNum === currentPage ? 'bg-gray-900 text-white hover:bg-gray-800' : ''}`}
+              onClick={() => handlePageChange(1)}
+              className="w-9 h-9"
             >
-              {pageNum}
+              1
             </Button>
-          ))}
+            {startPage > 2 && (
+              <span className="px-2 text-gray-400">...</span>
+            )}
+          </>
+        )}
 
-          {endPage < paginationData.totalPages && (
-            <>
-              {endPage < paginationData.totalPages - 1 && (
-                <span className="px-2 text-gray-400">...</span>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(paginationData.totalPages)}
-                className="w-9 h-9"
-              >
-                {paginationData.totalPages}
-              </Button>
-            </>
-          )}
-
+        {pages.map((pageNum) => (
           <Button
-            variant="outline"
+            key={pageNum}
+            variant={pageNum === currentPage ? "primary" : "outline"}
             size="sm"
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === paginationData.totalPages}
-            className="w-9 h-9 p-0"
+            onClick={() => handlePageChange(pageNum)}
+            className={`w-9 h-9 ${pageNum === currentPage ? 'bg-blue-600 text-white' : ''}`}
           >
-            <ChevronRight size={16} />
+            {pageNum}
           </Button>
-        </div>
+        ))}
+
+        {endPage < paginationData.totalPages && (
+          <>
+            {endPage < paginationData.totalPages - 1 && (
+              <span className="px-2 text-gray-400">...</span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(paginationData.totalPages)}
+              className="w-9 h-9"
+            >
+              {paginationData.totalPages}
+            </Button>
+          </>
+        )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === paginationData.totalPages}
+          className="w-9 h-9 p-0"
+        >
+          <ChevronRight size={16} />
+        </Button>
       </div>
     );
   };
@@ -425,12 +421,12 @@ const Requests = () => {
         subtitle="إدارة ومتابعة طلبات صيانة المصاعد"
         actions={
           <Button
-            variant="outline"
-            onClick={refetch}
-            className="border-gray-300 hover:bg-gray-50"
+            variant="primary"
+            onClick={() => setShowAddModal(true)}
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
           >
-            <RefreshCw size={18} className="ml-2" />
-            تحديث
+            <Plus size={18} className="ml-2" />
+            طلب جديد
           </Button>
         }
       />
@@ -454,7 +450,7 @@ const Requests = () => {
             options={[
               { value: 'all', label: 'جميع الحالات' },
               { value: 'PENDING', label: 'معلق' },
-              { value: 'ASSIGNED', label: 'معين' },
+              { value: 'ASSIGNED', label: 'مُعين' },
               { value: 'ON_WAY', label: 'في الطريق' },
               { value: 'IN_PROGRESS', label: 'قيد التنفيذ' },
               { value: 'COMPLETED', label: 'مكتمل' },
@@ -496,7 +492,7 @@ const Requests = () => {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">{statistics.total}</p>
-              <p className="text-xs sm:text-sm text-blue-600 font-medium mt-1">إجمالي</p>
+              <p className="text-xs sm:text-sm text-blue-600 font-medium mt-1">إجمالي الطلبات</p>
             </div>
             <div className="p-2 sm:p-3 bg-white/50 rounded-lg flex-shrink-0">
               <FileText className="text-blue-600" size={20} />
@@ -555,137 +551,214 @@ const Requests = () => {
 
       {/* قائمة طلبات الصيانة */}
       {paginationData.currentItems.length === 0 ? (
-        <Card>
+        <Card className="shadow-sm">
           <EmptyState
             icon={<FileText className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300" />}
             title="لا توجد طلبات"
             description="لم يتم العثور على طلبات مطابقة لبحثك"
+            actionLabel="إنشاء طلب جديد"
+            onAction={() => setShowAddModal(true)}
           />
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
-            {paginationData.currentItems.map((request) => (
-              <Card key={request.id} className="hover:shadow-lg transition-all duration-300 flex flex-col">
-                <div className="p-4 sm:p-5 flex flex-col flex-1">
-                  {/* العنوان والأيقونات */}
-                  <div className="flex items-start justify-between mb-3 sm:mb-4 gap-2">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-gray-900 text-sm sm:text-base truncate">
-                        {request.referenceNumber}
-                      </h3>
-                      <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                        {formatDate(request.createdAt)}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <Badge variant={getStatusColor(request.status)} size="sm">
-                        {getStatusArabic(request.status)}
-                      </Badge>
-                      <Badge variant={getPriorityColor(request.priority)} size="sm">
-                        {getPriorityArabic(request.priority)}
-                      </Badge>
-                    </div>
-                  </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+            {paginationData.currentItems.map((request) => {
+              const statusColor = getStatusColor(request.status);
+              const priorityColor = getPriorityColor(request.priority);
+              const hasReport = !!request.report;
+              const timeSinceCreation = getTimeDifference(new Date(request.createdAt), new Date());
 
-                  {/* معلومات العميل */}
-                  <div className="mb-3 p-2.5 sm:p-3 bg-blue-50 rounded-lg border-r-4 border-blue-400">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <User size={14} className="text-blue-600 sm:w-4 sm:h-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-bold text-gray-900 text-xs sm:text-sm truncate">
-                          {request.client?.user?.fullName || request.clientName || 'غير معروف'}
+              return (
+                <Card key={request.id} className="shadow-sm hover:shadow-lg transition-all duration-300">
+                  <div className="p-4 sm:p-6">
+                    {/* العنوان والأيقونات */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <div className="flex items-center gap-1 mb-1">
+                          <Hash size={14} className="text-gray-400 flex-shrink-0" />
+                          <h3 className="font-bold text-gray-900 text-sm sm:text-base truncate">
+                            {request.referenceNumber}
+                          </h3>
+                        </div>
+                        <p className="text-xs sm:text-sm text-gray-500 flex items-center gap-1">
+                          <CalendarClock size={12} />
+                          {formatDate(request.createdAt)}
                         </p>
-                        {request.client?.user?.phoneNumber && (
-                          <p className="text-[10px] sm:text-xs text-gray-600 mt-0.5 truncate">
-                            {request.client.user.phoneNumber}
-                          </p>
-                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant={statusColor} size="sm">
+                          {getStatusArabic(request.status)}
+                        </Badge>
+                        <Badge variant={priorityColor} size="sm">
+                          {getPriorityArabic(request.priority)}
+                        </Badge>
                       </div>
                     </div>
-                  </div>
 
-                  {/* معلومات الفني المعين */}
-                  {request.assignedTechnician ? (
-                    <div className="mb-3 p-2.5 sm:p-3 bg-green-50 rounded-lg border-r-4 border-green-400">
+                    {/* معلومات العميل */}
+                    <div className="mb-4 p-3 bg-blue-50 rounded-lg border-r-4 border-blue-400">
+                      <div className="flex items-center gap-2 mb-2">
+                        <User size={14} className="text-blue-600 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm font-medium text-blue-800">العميل</span>
+                      </div>
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                          <Wrench size={14} className="text-green-600 sm:w-4 sm:h-4" />
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          <User size={12} className="text-blue-600" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-bold text-gray-900 text-xs sm:text-sm truncate">
-                            {request.assignedTechnician.user?.fullName || 'فني غير معروف'}
+                            {request.client?.user?.fullName || request.clientName || 'غير معروف'}
                           </p>
-                          <p className="text-[10px] sm:text-xs text-gray-600 mt-0.5">الفني المعين</p>
+                          {request.client?.user?.phoneNumber && (
+                            <p className="text-[10px] sm:text-xs text-gray-600 mt-0.5 flex items-center gap-1 truncate">
+                              <Phone size={10} />
+                              {request.client.user.phoneNumber}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
-                  ) : (
-                    <div className="mb-3 p-2.5 sm:p-3 bg-gray-100 rounded-lg border-r-4 border-gray-300">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
-                          <User size={14} className="text-gray-500 sm:w-4 sm:h-4" />
+
+                    {/* معلومات الفني المعين */}
+                    {request.assignedTechnician ? (
+                      <div className="mb-4 p-3 bg-green-50 rounded-lg border-r-4 border-green-400">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Wrench size={14} className="text-green-600 flex-shrink-0" />
+                          <span className="text-xs sm:text-sm font-medium text-green-800">الفني المعين</span>
                         </div>
-                        <p className="text-xs sm:text-sm font-medium text-gray-700">لم يتم تعيين فني</p>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Wrench size={12} className="text-green-600" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-gray-900 text-xs sm:text-sm truncate">
+                              {request.assignedTechnician.user?.fullName || request.technicianName || 'فني غير معروف'}
+                            </p>
+                            {request.assignedTechnician.user?.phoneNumber && (
+                              <p className="text-[10px] sm:text-xs text-gray-600 mt-0.5 flex items-center gap-1 truncate">
+                                <Phone size={10} />
+                                {request.assignedTechnician.user.phoneNumber}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {/* معلومات المصعد */}
-                  <div className="mb-3 sm:mb-4 p-2.5 sm:p-3 bg-gray-50 rounded-lg flex-1">
-                    <div className="space-y-1.5 sm:space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] sm:text-xs text-gray-600">الموديل:</span>
-                        <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
-                          {request.elevator?.modelNumber || 'بدون موديل'}
-                        </span>
+                    ) : (
+                      <div className="mb-4 p-3 bg-gray-100 rounded-lg border-r-4 border-gray-300">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                            <User size={12} className="text-gray-500" />
+                          </div>
+                          <div>
+                            <p className="text-xs sm:text-sm font-medium text-gray-700">لم يتم تعيين فني</p>
+                            <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5">في انتظار التعيين</p>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <MapPin size={12} className="text-gray-400 flex-shrink-0" />
-                        <span className="text-[10px] sm:text-xs text-gray-600 truncate">
-                          {request.elevator?.locationAddress || 'لا يوجد عنوان'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* الأزرار */}
-                  <div className="flex gap-2 mt-auto">
-                    <Button
-                      variant="outline"
-                      className="flex-1 text-xs sm:text-sm text-blue-600 border-blue-200 hover:bg-blue-50 py-2"
-                      onClick={() => handleViewDetails(request)}
-                    >
-                      <Eye size={14} className="ml-1 sm:ml-2 sm:w-4 sm:h-4" />
-                      التفاصيل
-                    </Button>
-
-                    {request.status === 'PENDING' && (
-                      <Button
-                        variant="outline"
-                        className="flex-1 text-xs sm:text-sm text-green-600 border-green-200 hover:bg-green-50 py-2"
-                        onClick={() => handleOpenAssignModal(request)}
-                      >
-                        <User size={14} className="ml-1 sm:ml-2 sm:w-4 sm:h-4" />
-                        تعيين
-                      </Button>
                     )}
 
-                    {['ASSIGNED', 'ON_WAY', 'IN_PROGRESS'].includes(request.status) && (
+                    {/* معلومات المصعد */}
+                    <div className="mb-4 sm:mb-6 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <MapPin size={14} className="text-gray-500 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm font-medium text-gray-700">معلومات المصعد</span>
+                      </div>
+                      <div className="space-y-1.5 sm:space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] sm:text-xs text-gray-600">الموديل:</span>
+                          <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
+                            {request.elevator?.modelNumber || request.elevatorModel || 'بدون موديل'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] sm:text-xs text-gray-600">التسلسلي:</span>
+                          <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
+                            {request.elevator?.serialNumber || request.elevatorSerial || 'بدون رقم تسلسلي'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <MapPin size={10} className="text-gray-400 flex-shrink-0" />
+                          <span className="text-[10px] sm:text-xs text-gray-600 truncate">
+                            {request.elevator?.locationAddress || request.locationAddress || 'لا يوجد عنوان'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {request.description && (
+                      <div className="mb-4 sm:mb-6 pt-3 sm:pt-4 border-t border-gray-200">
+                        <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+                          <FileText size={14} className="text-gray-400 flex-shrink-0" />
+                          <span className="text-xs sm:text-sm font-medium text-gray-700">وصف المشكلة</span>
+                        </div>
+                        <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 bg-gray-50 p-2 sm:p-3 rounded text-right">
+                          {request.description}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* الإحصائيات */}
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-3 sm:pt-4 border-t border-gray-200">
+                      <div className="text-center">
+                        <div className="text-base sm:text-lg font-bold text-gray-900">
+                          {timeSinceCreation}
+                        </div>
+                        <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">منذ الإنشاء</p>
+                      </div>
+
+                      <div className="text-center">
+                        <div className="text-base sm:text-lg font-bold text-gray-900">
+                          {hasReport ? 'نعم' : 'لا'}
+                        </div>
+                        <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">تقرير</p>
+                      </div>
+
+                      <div className="text-center">
+                        <div className={`text-base sm:text-lg font-bold ${request.assignedTechnician ? 'text-green-600' : 'text-red-600'}`}>
+                          {request.assignedTechnician ? 'مُعين' : 'غير معين'}
+                        </div>
+                        <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">حالة التعيين</p>
+                      </div>
+                    </div>
+
+                    {/* الأزرار */}
+                    <div className="flex gap-2 mt-4 sm:mt-6">
                       <Button
                         variant="outline"
-                        className="w-9 h-9 sm:w-10 sm:h-10 p-0 text-purple-600 border-purple-200 hover:bg-purple-50"
-                        onClick={() => handleOpenStatusModal(request)}
+                        className="flex-1 text-blue-600 border-blue-200 hover:bg-blue-50 text-xs sm:text-sm py-2"
+                        onClick={() => handleViewDetails(request)}
                       >
-                        <Clock size={14} className="sm:w-4 sm:h-4" />
+                        <Eye size={12} className="ml-1 sm:ml-2" />
+                        التفاصيل
                       </Button>
-                    )}
+
+                      {request.status === 'PENDING' && (
+                        <Button
+                          variant="outline"
+                          className="flex-1 text-green-600 border-green-200 hover:bg-green-50 text-xs sm:text-sm py-2"
+                          onClick={() => handleOpenAssignModal(request)}
+                        >
+                          <User size={12} className="ml-1 sm:ml-2" />
+                          تعيين
+                        </Button>
+                      )}
+
+                      {['ASSIGNED', 'ON_WAY', 'IN_PROGRESS'].includes(request.status) && (
+                        <Button
+                          variant="outline"
+                          className="text-purple-600 border-purple-200 hover:bg-purple-50 w-9 h-9 sm:w-10 sm:h-10 p-0"
+                          onClick={() => handleOpenStatusModal(request)}
+                          title="تحديث الحالة"
+                        >
+                          <Clock size={14} />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
 
           <PaginationComponent />
@@ -737,6 +810,19 @@ const Requests = () => {
             </div>
           </div>
 
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">الحالة الحالية</label>
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${requestToUpdateStatus?.status === 'PENDING' ? 'bg-yellow-500' :
+                requestToUpdateStatus?.status === 'ASSIGNED' ? 'bg-blue-500' :
+                  requestToUpdateStatus?.status === 'ON_WAY' ? 'bg-purple-500' :
+                    requestToUpdateStatus?.status === 'IN_PROGRESS' ? 'bg-green-500' :
+                      requestToUpdateStatus?.status === 'COMPLETED' ? 'bg-emerald-500' :
+                        'bg-red-500'}`}></div>
+              <span className="font-medium text-sm sm:text-base">{getStatusArabic(requestToUpdateStatus?.status)}</span>
+            </div>
+          </div>
+
           <Select
             label="الحالة الجديدة"
             value={selectedStatus}
@@ -746,7 +832,7 @@ const Requests = () => {
               const options = [];
 
               if (currentStatus === 'PENDING') {
-                options.push({ value: 'ASSIGNED', label: 'معين' });
+                options.push({ value: 'ASSIGNED', label: 'مُعين' });
                 options.push({ value: 'CANCELLED', label: 'ملغي' });
               } else if (currentStatus === 'ASSIGNED') {
                 options.push({ value: 'ON_WAY', label: 'في الطريق' });
@@ -771,7 +857,7 @@ const Requests = () => {
           {selectedStatus === 'COMPLETED' && (
             <div className="bg-emerald-50 border border-emerald-200 p-3 sm:p-4 rounded-lg">
               <div className="flex items-start gap-2">
-                <CheckCircle size={16} className="text-emerald-600 flex-shrink-0 mt-0.5 sm:w-5 sm:h-5" />
+                <CheckCircle size={16} className="text-emerald-600 flex-shrink-0 mt-0.5" />
                 <div className="min-w-0">
                   <p className="font-medium text-emerald-800 text-sm sm:text-base">سيتم إغلاق الطلب</p>
                   <p className="text-xs sm:text-sm text-emerald-700 mt-1">
@@ -798,7 +884,7 @@ const Requests = () => {
               variant="primary"
               onClick={handleUpdateStatus}
               disabled={!selectedStatus || selectedStatus === requestToUpdateStatus?.status}
-              className="bg-gray-900 hover:bg-gray-800 text-sm"
+              className="bg-blue-600 hover:bg-blue-700 text-sm"
             >
               تحديث الحالة
             </Button>
@@ -852,7 +938,7 @@ const Requests = () => {
                       <h4 className="font-bold text-gray-900 border-b pb-2 text-sm sm:text-base">معلومات العميل</h4>
                       <div className="space-y-2 sm:space-y-3">
                         <div className="flex items-center gap-2">
-                          <User size={14} className="text-gray-400 sm:w-4 sm:h-4 flex-shrink-0" />
+                          <User size={14} className="text-gray-400 flex-shrink-0" />
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-gray-900 text-sm sm:text-base truncate">
                               {selectedRequest.client?.user?.fullName || selectedRequest.clientName}
@@ -863,7 +949,7 @@ const Requests = () => {
 
                         {selectedRequest.client?.user?.phoneNumber && (
                           <div className="flex items-center gap-2">
-                            <Phone size={14} className="text-gray-400 sm:w-4 sm:h-4 flex-shrink-0" />
+                            <Phone size={14} className="text-gray-400 flex-shrink-0" />
                             <div className="min-w-0 flex-1">
                               <p className="font-medium text-gray-900 text-sm sm:text-base">
                                 {selectedRequest.client.user.phoneNumber}
@@ -886,7 +972,7 @@ const Requests = () => {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <MapPin size={14} className="text-gray-400 sm:w-4 sm:h-4 flex-shrink-0" />
+                          <MapPin size={14} className="text-gray-400 flex-shrink-0" />
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-gray-900 text-sm sm:text-base truncate">
                               {selectedRequest.elevator?.locationAddress || selectedRequest.locationAddress}
@@ -928,9 +1014,9 @@ const Requests = () => {
                       setShowDetailsModal(false);
                       handleOpenAssignModal(selectedRequest);
                     }}
-                    className="bg-gray-900 hover:bg-gray-800 text-sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-sm"
                   >
-                    <User size={14} className="ml-1 sm:ml-2 sm:w-4 sm:h-4" />
+                    <User size={14} className="ml-1 sm:ml-2" />
                     تعيين فني
                   </Button>
                 )}
