@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Search,
   Filter,
@@ -40,27 +40,27 @@ import { formatDate, formatDateTime, getTimeDifference } from '../../utils/dateH
 const Requests = () => {
   const { showToast } = useToast();
   
-  // استخدام useRequests مع القيم الافتراضية
   const {
-    requests,
+    requests: allRequests,
     loading,
     error,
-    pagination,
     fetchRequests,
     fetchRequestById,
     createRequest,
     assignTechnician,
     updateStatus,
-    updatePagination,
-    refetch,
-    updateFilters
+    refetch
   } = useRequests();
 
-  // States
+  // States للفلترة والبحث المحلي
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [sortBy, setSortBy] = useState('createdAt_desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(9); // 9 عناصر في الصفحة (3x3 grid)
+
+  // States للـ Modals
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -73,46 +73,80 @@ const Requests = () => {
   const [requestToUpdateStatus, setRequestToUpdateStatus] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState('');
 
-  // دالة البحث مع تأخير (debounce)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      handleSearch();
-    }, 500);
+  // فلترة وترتيب البيانات محلياً
+  const filteredAndSortedRequests = useMemo(() => {
+    let filtered = [...allRequests];
 
-    return () => clearTimeout(timer);
-  }, [search, filter, priorityFilter, sortBy]);
+    // البحث
+    if (search.trim()) {
+      const searchLower = search.toLowerCase().trim();
+      filtered = filtered.filter(req => 
+        req.referenceNumber?.toLowerCase().includes(searchLower) ||
+        req.client?.user?.fullName?.toLowerCase().includes(searchLower) ||
+        req.clientName?.toLowerCase().includes(searchLower) ||
+        req.description?.toLowerCase().includes(searchLower) ||
+        req.elevator?.modelNumber?.toLowerCase().includes(searchLower) ||
+        req.elevator?.serialNumber?.toLowerCase().includes(searchLower)
+      );
+    }
 
-  const handleSearch = () => {
-    const params = {
-      page: 1,
-      limit: pagination.limit,
-      search: search.trim() || undefined,
-      status: filter !== 'all' ? filter : undefined,
-      priority: priorityFilter !== 'all' ? priorityFilter : undefined,
-      sortBy: sortBy
-    };
-    
-    // إزالة الحقول غير المعرفة
-    Object.keys(params).forEach(key => {
-      if (params[key] === undefined || params[key] === '') {
-        delete params[key];
+    // فلترة حسب الحالة
+    if (filter !== 'all') {
+      filtered = filtered.filter(req => req.status === filter);
+    }
+
+    // فلترة حسب الأولوية
+    if (priorityFilter !== 'all') {
+      filtered = filtered.filter(req => req.priority === priorityFilter);
+    }
+
+    // الترتيب
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'createdAt_desc':
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        case 'createdAt_asc':
+          return new Date(a.createdAt) - new Date(b.createdAt);
+        case 'priority':
+          const priorityOrder = { EMERGENCY: 0, URGENT: 1, NORMAL: 2 };
+          return priorityOrder[a.priority] - priorityOrder[b.priority];
+        case 'status':
+          const statusOrder = { 
+            PENDING: 0, ASSIGNED: 1, ON_WAY: 2, 
+            IN_PROGRESS: 3, COMPLETED: 4, CANCELLED: 5 
+          };
+          return statusOrder[a.status] - statusOrder[b.status];
+        default:
+          return 0;
       }
     });
-    
-    updateFilters(params);
-  };
 
-  const handleFilterChange = (e) => {
-    setFilter(e.target.value);
-  };
+    return filtered;
+  }, [allRequests, search, filter, priorityFilter, sortBy]);
 
-  const handlePriorityChange = (e) => {
-    setPriorityFilter(e.target.value);
-  };
+  // حساب الـ pagination محلياً
+  const paginationData = useMemo(() => {
+    const total = filteredAndSortedRequests.length;
+    const totalPages = Math.ceil(total / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentItems = filteredAndSortedRequests.slice(startIndex, endIndex);
 
-  const handleSortChange = (e) => {
-    setSortBy(e.target.value);
-  };
+    return {
+      total,
+      totalPages,
+      currentPage,
+      itemsPerPage,
+      currentItems,
+      startIndex,
+      endIndex
+    };
+  }, [filteredAndSortedRequests, currentPage, itemsPerPage]);
+
+  // إعادة تعيين الصفحة عند تغيير الفلتر
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filter, priorityFilter, sortBy]);
 
   const handleViewDetails = async (request) => {
     setSelectedRequest(request);
@@ -145,7 +179,6 @@ const Requests = () => {
     setAddRequestError(null);
 
     try {
-      // تحويل البيانات للتنسيق المناسب للـ API
       const formattedData = {
         clientId: parseInt(requestData.clientId),
         elevatorId: parseInt(requestData.elevatorId),
@@ -159,7 +192,6 @@ const Requests = () => {
         scheduledDate: requestData.scheduledDate || undefined
       };
 
-      // إزالة الحقول غير المعرفة
       Object.keys(formattedData).forEach(key => {
         if (formattedData[key] === undefined) {
           delete formattedData[key];
@@ -204,22 +236,18 @@ const Requests = () => {
     } catch (err) {
       const errorMessage = err.response?.data?.message || err.response?.data?.error || 'فشل تحديث حالة الطلب';
       showToast(errorMessage, 'error');
-      console.error('Error updating status:', err);
     }
   };
 
-  const handleRefresh = () => {
-    refetch();
-  };
-
   const handlePageChange = (page) => {
-    updatePagination({ page });
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const getStatusArabic = (status) => {
     const statusMap = {
       PENDING: 'معلق',
-      ASSIGNED: 'مُعين',
+      ASSIGNED: 'معين',
       ON_WAY: 'في الطريق',
       IN_PROGRESS: 'قيد التنفيذ',
       COMPLETED: 'مكتمل',
@@ -258,18 +286,14 @@ const Requests = () => {
     return colorMap[priority] || 'default';
   };
 
-  const handleDownloadReport = (requestId) => {
-    showToast('جاري تحميل التقرير...', 'info');
-    // هنا يمكنك إضافة منطق تحميل التقرير
-  };
-
+  // مكون الـ Pagination
   const PaginationComponent = () => {
-    if (pagination.totalPages <= 1) return null;
+    if (paginationData.totalPages <= 1) return null;
 
     const pages = [];
     const maxPagesToShow = 5;
-    let startPage = Math.max(1, pagination.page - Math.floor(maxPagesToShow / 2));
-    let endPage = Math.min(pagination.totalPages, startPage + maxPagesToShow - 1);
+    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(paginationData.totalPages, startPage + maxPagesToShow - 1);
 
     if (endPage - startPage + 1 < maxPagesToShow) {
       startPage = Math.max(1, endPage - maxPagesToShow + 1);
@@ -280,92 +304,99 @@ const Requests = () => {
     }
 
     return (
-      <div className="flex items-center justify-center gap-2 mt-6">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handlePageChange(pagination.page - 1)}
-          disabled={pagination.page === 1}
-          className="w-10 h-10 p-0"
-        >
-          <ChevronLeft size={16} />
-        </Button>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8">
+        {/* معلومات العرض */}
+        <div className="text-sm text-gray-600">
+          عرض {paginationData.startIndex + 1} - {Math.min(paginationData.endIndex, paginationData.total)} من {paginationData.total} طلب
+        </div>
 
-        {startPage > 1 && (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(1)}
-              className="w-10 h-10"
-            >
-              1
-            </Button>
-            {startPage > 2 && (
-              <span className="px-2 text-gray-400">...</span>
-            )}
-          </>
-        )}
-
-        {pages.map((pageNum) => (
+        {/* أزرار الصفحات */}
+        <div className="flex items-center gap-2">
           <Button
-            key={pageNum}
-            variant={pageNum === pagination.page ? "primary" : "outline"}
+            variant="outline"
             size="sm"
-            onClick={() => handlePageChange(pageNum)}
-            className={`w-10 h-10 ${pageNum === pagination.page ? 'bg-blue-600 text-white' : ''}`}
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="w-9 h-9 p-0"
           >
-            {pageNum}
+            <ChevronLeft size={16} />
           </Button>
-        ))}
 
-        {endPage < pagination.totalPages && (
-          <>
-            {endPage < pagination.totalPages - 1 && (
-              <span className="px-2 text-gray-400">...</span>
-            )}
+          {startPage > 1 && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(1)}
+                className="w-9 h-9"
+              >
+                1
+              </Button>
+              {startPage > 2 && (
+                <span className="px-2 text-gray-400">...</span>
+              )}
+            </>
+          )}
+
+          {pages.map((pageNum) => (
             <Button
-              variant="outline"
+              key={pageNum}
+              variant={pageNum === currentPage ? "primary" : "outline"}
               size="sm"
-              onClick={() => handlePageChange(pagination.totalPages)}
-              className="w-10 h-10"
+              onClick={() => handlePageChange(pageNum)}
+              className={`w-9 h-9 ${pageNum === currentPage ? 'bg-gray-900 text-white hover:bg-gray-800' : ''}`}
             >
-              {pagination.totalPages}
+              {pageNum}
             </Button>
-          </>
-        )}
+          ))}
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handlePageChange(pagination.page + 1)}
-          disabled={pagination.page === pagination.totalPages}
-          className="w-10 h-10 p-0"
-        >
-          <ChevronRight size={16} />
-        </Button>
+          {endPage < paginationData.totalPages && (
+            <>
+              {endPage < paginationData.totalPages - 1 && (
+                <span className="px-2 text-gray-400">...</span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(paginationData.totalPages)}
+                className="w-9 h-9"
+              >
+                {paginationData.totalPages}
+              </Button>
+            </>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === paginationData.totalPages}
+            className="w-9 h-9 p-0"
+          >
+            <ChevronRight size={16} />
+          </Button>
+        </div>
       </div>
     );
   };
 
-  const statistics = {
-    total: pagination.total || requests.length,
-    emergency: requests.filter(r => r.priority === 'EMERGENCY').length,
-    urgent: requests.filter(r => r.priority === 'URGENT').length,
-    normal: requests.filter(r => r.priority === 'NORMAL').length,
-    pending: requests.filter(r => r.status === 'PENDING').length,
-    assigned: requests.filter(r => r.status === 'ASSIGNED').length,
-    onWay: requests.filter(r => r.status === 'ON_WAY').length,
-    inProgress: requests.filter(r => r.status === 'IN_PROGRESS').length,
-    completed: requests.filter(r => r.status === 'COMPLETED').length,
-    cancelled: requests.filter(r => r.status === 'CANCELLED').length,
-  };
+  // حساب الإحصائيات
+  const statistics = useMemo(() => {
+    return {
+      total: filteredAndSortedRequests.length,
+      emergency: filteredAndSortedRequests.filter(r => r.priority === 'EMERGENCY').length,
+      urgent: filteredAndSortedRequests.filter(r => r.priority === 'URGENT').length,
+      normal: filteredAndSortedRequests.filter(r => r.priority === 'NORMAL').length,
+      pending: filteredAndSortedRequests.filter(r => r.status === 'PENDING').length,
+      assigned: filteredAndSortedRequests.filter(r => r.status === 'ASSIGNED').length,
+      onWay: filteredAndSortedRequests.filter(r => r.status === 'ON_WAY').length,
+      inProgress: filteredAndSortedRequests.filter(r => r.status === 'IN_PROGRESS').length,
+      completed: filteredAndSortedRequests.filter(r => r.status === 'COMPLETED').length,
+      cancelled: filteredAndSortedRequests.filter(r => r.status === 'CANCELLED').length,
+    };
+  }, [filteredAndSortedRequests]);
 
-  statistics.completionRate = statistics.total > 0
-    ? Math.round((statistics.completed / statistics.total) * 100)
-    : 0;
-
-  if (loading && requests.length === 0) {
+  if (loading && allRequests.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loading size="lg" />
@@ -373,7 +404,7 @@ const Requests = () => {
     );
   }
 
-  if (error && requests.length === 0) {
+  if (error && allRequests.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <EmptyState
@@ -388,28 +419,26 @@ const Requests = () => {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-4 sm:space-y-6">
       <PageHeader
         title="طلبات الصيانة"
         subtitle="إدارة ومتابعة طلبات صيانة المصاعد"
         actions={
-          <div className="flex flex-wrap gap-3">
-            {/* <Button
-              variant="primary"
-              onClick={() => setShowAddModal(true)}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-            >
-              <Plus size={18} className="mr-2" />
-              طلب جديد
-            </Button> */}
-          </div>
+          <Button
+            variant="outline"
+            onClick={refetch}
+            className="border-gray-300 hover:bg-gray-50"
+          >
+            <RefreshCw size={18} className="ml-2" />
+            تحديث
+          </Button>
         }
       />
 
       {/* الفلترة والبحث */}
-      <Card className="p-6 shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="md:col-span-2">
+      <Card className="p-4 sm:p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="sm:col-span-2 lg:col-span-2">
             <Input
               placeholder="ابحث برقم المرجع أو اسم العميل..."
               value={search}
@@ -421,11 +450,11 @@ const Requests = () => {
 
           <Select
             value={filter}
-            onChange={handleFilterChange}
+            onChange={(e) => setFilter(e.target.value)}
             options={[
               { value: 'all', label: 'جميع الحالات' },
               { value: 'PENDING', label: 'معلق' },
-              { value: 'ASSIGNED', label: 'مُعين' },
+              { value: 'ASSIGNED', label: 'معين' },
               { value: 'ON_WAY', label: 'في الطريق' },
               { value: 'IN_PROGRESS', label: 'قيد التنفيذ' },
               { value: 'COMPLETED', label: 'مكتمل' },
@@ -436,7 +465,7 @@ const Requests = () => {
 
           <Select
             value={sortBy}
-            onChange={handleSortChange}
+            onChange={(e) => setSortBy(e.target.value)}
             options={[
               { value: 'createdAt_desc', label: 'الأحدث أولاً' },
               { value: 'createdAt_asc', label: 'الأقدم أولاً' },
@@ -447,10 +476,10 @@ const Requests = () => {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-200">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
           <Select
             value={priorityFilter}
-            onChange={handlePriorityChange}
+            onChange={(e) => setPriorityFilter(e.target.value)}
             options={[
               { value: 'all', label: 'جميع الأولويات' },
               { value: 'EMERGENCY', label: 'طارئ' },
@@ -462,282 +491,208 @@ const Requests = () => {
       </Card>
 
       {/* إحصائيات سريعة */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        <Card className="p-6 shadow-sm bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-3xl font-bold text-gray-900">{statistics.total}</p>
-              <p className="text-sm text-blue-600 font-medium mt-1">إجمالي الطلبات</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        <Card className="p-4 sm:p-5 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">{statistics.total}</p>
+              <p className="text-xs sm:text-sm text-blue-600 font-medium mt-1">إجمالي</p>
             </div>
-            <div className="p-3 bg-white/50 rounded-xl">
-              <FileText className="text-blue-600" size={24} />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6 shadow-sm bg-gradient-to-br from-red-50 to-red-100 border border-red-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-3xl font-bold text-gray-900">{statistics.emergency}</p>
-              <p className="text-sm text-red-600 font-medium mt-1">طارئ</p>
-            </div>
-            <div className="p-3 bg-white/50 rounded-xl">
-              <AlertCircle className="text-red-600" size={24} />
+            <div className="p-2 sm:p-3 bg-white/50 rounded-lg flex-shrink-0">
+              <FileText className="text-blue-600" size={20} />
             </div>
           </div>
         </Card>
 
-        <Card className="p-6 shadow-sm bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-3xl font-bold text-gray-900">{statistics.inProgress}</p>
-              <p className="text-sm text-amber-600 font-medium mt-1">قيد التنفيذ</p>
+        <Card className="p-4 sm:p-5 bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">{statistics.emergency}</p>
+              <p className="text-xs sm:text-sm text-red-600 font-medium mt-1">طارئ</p>
             </div>
-            <div className="p-3 bg-white/50 rounded-xl">
-              <Clock className="text-amber-600" size={24} />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6 shadow-sm bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-3xl font-bold text-gray-900">{statistics.completed}</p>
-              <p className="text-sm text-emerald-600 font-medium mt-1">مكتمل</p>
-            </div>
-            <div className="p-3 bg-white/50 rounded-xl">
-              <CheckCircle className="text-emerald-600" size={24} />
+            <div className="p-2 sm:p-3 bg-white/50 rounded-lg flex-shrink-0">
+              <AlertCircle className="text-red-600" size={20} />
             </div>
           </div>
         </Card>
 
-        <Card className="p-6 shadow-sm bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-3xl font-bold text-gray-900">{statistics.pending}</p>
-              <p className="text-sm text-purple-600 font-medium mt-1">معلق</p>
+        <Card className="p-4 sm:p-5 bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">{statistics.inProgress}</p>
+              <p className="text-xs sm:text-sm text-amber-600 font-medium mt-1">قيد التنفيذ</p>
             </div>
-            <div className="p-3 bg-white/50 rounded-xl">
-              <Clock className="text-purple-600" size={24} />
+            <div className="p-2 sm:p-3 bg-white/50 rounded-lg flex-shrink-0">
+              <Clock className="text-amber-600" size={20} />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 sm:p-5 bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">{statistics.completed}</p>
+              <p className="text-xs sm:text-sm text-emerald-600 font-medium mt-1">مكتمل</p>
+            </div>
+            <div className="p-2 sm:p-3 bg-white/50 rounded-lg flex-shrink-0">
+              <CheckCircle className="text-emerald-600" size={20} />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 sm:p-5 bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">{statistics.pending}</p>
+              <p className="text-xs sm:text-sm text-purple-600 font-medium mt-1">معلق</p>
+            </div>
+            <div className="p-2 sm:p-3 bg-white/50 rounded-lg flex-shrink-0">
+              <Clock className="text-purple-600" size={20} />
             </div>
           </div>
         </Card>
       </div>
 
       {/* قائمة طلبات الصيانة */}
-      {requests.length === 0 ? (
-        <Card className="shadow-sm">
+      {paginationData.currentItems.length === 0 ? (
+        <Card>
           <EmptyState
-            icon={<FileText className="w-16 h-16 text-gray-300" />}
+            icon={<FileText className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300" />}
             title="لا توجد طلبات"
             description="لم يتم العثور على طلبات مطابقة لبحثك"
-            actionLabel="إنشاء طلب جديد"
-            onAction={() => setShowAddModal(true)}
           />
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {requests.map((request) => {
-              const statusColor = getStatusColor(request.status);
-              const priorityColor = getPriorityColor(request.priority);
-              const hasReport = !!request.report;
-              const timeSinceCreation = getTimeDifference(new Date(request.createdAt), new Date());
-
-              return (
-                <Card key={request.id} className="shadow-sm hover:shadow-lg transition-all duration-300">
-                  <div className="p-6">
-                    {/* العنوان والأيقونات */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="font-bold text-gray-900 truncate">
-                          {request.referenceNumber}
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                          {formatDate(request.createdAt)}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <Badge variant={statusColor} size="sm">
-                          {getStatusArabic(request.status)}
-                        </Badge>
-                        <Badge variant={priorityColor} size="sm">
-                          {getPriorityArabic(request.priority)}
-                        </Badge>
-                      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+            {paginationData.currentItems.map((request) => (
+              <Card key={request.id} className="hover:shadow-lg transition-all duration-300 flex flex-col">
+                <div className="p-4 sm:p-5 flex flex-col flex-1">
+                  {/* العنوان والأيقونات */}
+                  <div className="flex items-start justify-between mb-3 sm:mb-4 gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-gray-900 text-sm sm:text-base truncate">
+                        {request.referenceNumber}
+                      </h3>
+                      <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+                        {formatDate(request.createdAt)}
+                      </p>
                     </div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <Badge variant={getStatusColor(request.status)} size="sm">
+                        {getStatusArabic(request.status)}
+                      </Badge>
+                      <Badge variant={getPriorityColor(request.priority)} size="sm">
+                        {getPriorityArabic(request.priority)}
+                      </Badge>
+                    </div>
+                  </div>
 
-                    {/* معلومات العميل - مع تنسيق مميز */}
-                    <div className="mb-4 p-3 bg-blue-50 rounded-lg border-r-4 border-blue-400">
-                      <div className="flex items-center gap-2 mb-2">
-                        <User size={16} className="text-blue-600 flex-shrink-0" />
-                        <span className="text-sm font-medium text-blue-800">العميل</span>
+                  {/* معلومات العميل */}
+                  <div className="mb-3 p-2.5 sm:p-3 bg-blue-50 rounded-lg border-r-4 border-blue-400">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <User size={14} className="text-blue-600 sm:w-4 sm:h-4" />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                          <User size={14} className="text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-gray-900 text-sm truncate">
-                            {request.client?.user?.fullName || request.clientName || 'غير معروف'}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-gray-900 text-xs sm:text-sm truncate">
+                          {request.client?.user?.fullName || request.clientName || 'غير معروف'}
+                        </p>
+                        {request.client?.user?.phoneNumber && (
+                          <p className="text-[10px] sm:text-xs text-gray-600 mt-0.5 truncate">
+                            {request.client.user.phoneNumber}
                           </p>
-                          {request.client?.user?.phoneNumber && (
-                            <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
-                              <Phone size={12} />
-                              {request.client.user.phoneNumber}
-                            </p>
-                          )}
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* معلومات الفني المعين */}
+                  {request.assignedTechnician ? (
+                    <div className="mb-3 p-2.5 sm:p-3 bg-green-50 rounded-lg border-r-4 border-green-400">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Wrench size={14} className="text-green-600 sm:w-4 sm:h-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-gray-900 text-xs sm:text-sm truncate">
+                            {request.assignedTechnician.user?.fullName || 'فني غير معروف'}
+                          </p>
+                          <p className="text-[10px] sm:text-xs text-gray-600 mt-0.5">الفني المعين</p>
                         </div>
                       </div>
                     </div>
-
-                    {/* معلومات الفني المعين - مع تنسيق مختلف */}
-                    {request.assignedTechnician ? (
-                      <div className="mb-4 p-3 bg-green-50 rounded-lg border-r-4 border-green-400">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Wrench size={16} className="text-green-600 flex-shrink-0" />
-                          <span className="text-sm font-medium text-green-800">الفني المعين</span>
+                  ) : (
+                    <div className="mb-3 p-2.5 sm:p-3 bg-gray-100 rounded-lg border-r-4 border-gray-300">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                          <User size={14} className="text-gray-500 sm:w-4 sm:h-4" />
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                            <Wrench size={14} className="text-green-600" />
-                          </div>
-                          <div>
-                            <p className="font-bold text-gray-900 text-sm truncate">
-                              {request.assignedTechnician.user?.fullName || request.technicianName || 'فني غير معروف'}
-                            </p>
-                            {request.assignedTechnician.user?.phoneNumber && (
-                              <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
-                                <Phone size={12} />
-                                {request.assignedTechnician.user.phoneNumber}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="mb-4 p-3 bg-gray-100 rounded-lg border-r-4 border-gray-300">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                            <User size={14} className="text-gray-500" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-700">لم يتم تعيين فني</p>
-                            <p className="text-xs text-gray-500 mt-1">في انتظار التعيين</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* معلومات المصعد */}
-                    <div className="mb-6 p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <MapPin size={16} className="text-gray-500 flex-shrink-0" />
-                        <span className="text-sm font-medium text-gray-700">معلومات المصعد</span>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-600">الموديل:</span>
-                          <span className="text-sm font-medium text-gray-900 truncate">
-                            {request.elevator?.modelNumber || request.elevatorModel || 'بدون موديل'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-600">التسلسلي:</span>
-                          <span className="text-sm font-medium text-gray-900 truncate">
-                            {request.elevator?.serialNumber || request.elevatorSerial || 'بدون رقم تسلسلي'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <MapPin size={12} className="text-gray-400 flex-shrink-0" />
-                          <span className="text-xs text-gray-600 truncate">
-                            {request.elevator?.locationAddress || request.locationAddress || 'لا يوجد عنوان'}
-                          </span>
-                        </div>
+                        <p className="text-xs sm:text-sm font-medium text-gray-700">لم يتم تعيين فني</p>
                       </div>
                     </div>
+                  )}
 
-                    {request.description && (
-                      <div className="mb-6 pt-4 border-t border-gray-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FileText size={16} className="text-gray-400 flex-shrink-0" />
-                          <span className="text-sm font-medium text-gray-700">وصف المشكلة</span>
-                        </div>
-                        <p className="text-sm text-gray-600 line-clamp-2 bg-gray-50 p-3 rounded">
-                          {request.description}
-                        </p>
+                  {/* معلومات المصعد */}
+                  <div className="mb-3 sm:mb-4 p-2.5 sm:p-3 bg-gray-50 rounded-lg flex-1">
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] sm:text-xs text-gray-600">الموديل:</span>
+                        <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
+                          {request.elevator?.modelNumber || 'بدون موديل'}
+                        </span>
                       </div>
-                    )}
-
-                    {/* الإحصائيات */}
-                    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-200">
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-gray-900">
-                          {getTimeDifference(new Date(request.createdAt), new Date())}
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">منذ الإنشاء</p>
-                      </div>
-
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-gray-900">
-                          {!!request.report ? 'نعم' : 'لا'}
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">تقرير</p>
-                      </div>
-
-                      <div className="text-center">
-                        <div className={`text-lg font-bold ${request.assignedTechnician ? 'text-green-600' : 'text-red-600'}`}>
-                          {request.assignedTechnician ? 'مُعين' : 'غير معين'}
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">حالة التعيين</p>
+                      <div className="flex items-center gap-1">
+                        <MapPin size={12} className="text-gray-400 flex-shrink-0" />
+                        <span className="text-[10px] sm:text-xs text-gray-600 truncate">
+                          {request.elevator?.locationAddress || 'لا يوجد عنوان'}
+                        </span>
                       </div>
                     </div>
+                  </div>
 
-                    {/* الأزرار */}
-                    <div className="flex gap-2 mt-6">
+                  {/* الأزرار */}
+                  <div className="flex gap-2 mt-auto">
+                    <Button
+                      variant="outline"
+                      className="flex-1 text-xs sm:text-sm text-blue-600 border-blue-200 hover:bg-blue-50 py-2"
+                      onClick={() => handleViewDetails(request)}
+                    >
+                      <Eye size={14} className="ml-1 sm:ml-2 sm:w-4 sm:h-4" />
+                      التفاصيل
+                    </Button>
+
+                    {request.status === 'PENDING' && (
                       <Button
                         variant="outline"
-                        className="flex-1 text-blue-600 border-blue-200 hover:bg-blue-50"
-                        onClick={() => handleViewDetails(request)}
+                        className="flex-1 text-xs sm:text-sm text-green-600 border-green-200 hover:bg-green-50 py-2"
+                        onClick={() => handleOpenAssignModal(request)}
                       >
-                        <Eye size={16} className="mr-2" />
-                        التفاصيل
+                        <User size={14} className="ml-1 sm:ml-2 sm:w-4 sm:h-4" />
+                        تعيين
                       </Button>
+                    )}
 
-                      {request.status === 'PENDING' && (
-                        <Button
-                          variant="outline"
-                          className="flex-1 text-green-600 border-green-200 hover:bg-green-50"
-                          onClick={() => handleOpenAssignModal(request)}
-                        >
-                          <User size={16} className="mr-2" />
-                          تعيين
-                        </Button>
-                      )}
-
-                      {['ASSIGNED', 'ON_WAY', 'IN_PROGRESS'].includes(request.status) && (
-                        <Button
-                          variant="outline"
-                          className="flex-1 text-purple-600 border-purple-200 hover:bg-purple-50"
-                          onClick={() => handleOpenStatusModal(request)}
-                          aria-label="Update status"
-                        >
-                          <Clock size={16} />
-                        </Button>
-                      )}
-                    </div>
-
-                   
+                    {['ASSIGNED', 'ON_WAY', 'IN_PROGRESS'].includes(request.status) && (
+                      <Button
+                        variant="outline"
+                        className="w-9 h-9 sm:w-10 sm:h-10 p-0 text-purple-600 border-purple-200 hover:bg-purple-50"
+                        onClick={() => handleOpenStatusModal(request)}
+                      >
+                        <Clock size={14} className="sm:w-4 sm:h-4" />
+                      </Button>
+                    )}
                   </div>
-                </Card>
-              );
-            })}
+                </div>
+              </Card>
+            ))}
           </div>
 
           <PaginationComponent />
         </>
       )}
 
+      {/* Modals */}
       <AddMaintenanceRequestModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -756,6 +711,7 @@ const Requests = () => {
         request={requestToAssign}
       />
 
+      {/* Status Update Modal */}
       <Modal
         isOpen={showStatusModal}
         onClose={() => {
@@ -766,29 +722,18 @@ const Requests = () => {
         title="تحديث حالة الطلب"
         size="md"
       >
-        <div className="space-y-6">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">رقم المرجع</p>
-                <p className="font-bold text-gray-900">{requestToUpdateStatus?.referenceNumber}</p>
+        <div className="space-y-4 sm:space-y-6">
+          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-gray-600">رقم المرجع</p>
+                <p className="font-bold text-gray-900 text-sm sm:text-base truncate">
+                  {requestToUpdateStatus?.referenceNumber}
+                </p>
               </div>
               <Badge variant={getStatusColor(requestToUpdateStatus?.status)}>
                 {getStatusArabic(requestToUpdateStatus?.status)}
               </Badge>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">الحالة الحالية</label>
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${requestToUpdateStatus?.status === 'PENDING' ? 'bg-yellow-500' :
-                requestToUpdateStatus?.status === 'ASSIGNED' ? 'bg-blue-500' :
-                  requestToUpdateStatus?.status === 'ON_WAY' ? 'bg-purple-500' :
-                    requestToUpdateStatus?.status === 'IN_PROGRESS' ? 'bg-green-500' :
-                      requestToUpdateStatus?.status === 'COMPLETED' ? 'bg-emerald-500' :
-                        'bg-red-500'}`}></div>
-              <span className="font-medium">{getStatusArabic(requestToUpdateStatus?.status)}</span>
             </div>
           </div>
 
@@ -801,7 +746,7 @@ const Requests = () => {
               const options = [];
 
               if (currentStatus === 'PENDING') {
-                options.push({ value: 'ASSIGNED', label: 'مُعين' });
+                options.push({ value: 'ASSIGNED', label: 'معين' });
                 options.push({ value: 'CANCELLED', label: 'ملغي' });
               } else if (currentStatus === 'ASSIGNED') {
                 options.push({ value: 'ON_WAY', label: 'في الطريق' });
@@ -813,57 +758,31 @@ const Requests = () => {
                 options.push({ value: 'COMPLETED', label: 'مكتمل' });
                 options.push({ value: 'CANCELLED', label: 'ملغي' });
               } else if (currentStatus === 'COMPLETED') {
-                options.push({ value: 'IN_PROGRESS', label: 'إعادة فتح (قيد التنفيذ)' });
+                options.push({ value: 'IN_PROGRESS', label: 'إعادة فتح' });
               } else if (currentStatus === 'CANCELLED') {
-                options.push({ value: 'PENDING', label: 'إعادة فتح (معلق)' });
+                options.push({ value: 'PENDING', label: 'إعادة فتح' });
               }
 
               return options;
             })()}
             required
-            disabled={!requestToUpdateStatus}
           />
 
           {selectedStatus === 'COMPLETED' && (
-            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-lg">
+            <div className="bg-emerald-50 border border-emerald-200 p-3 sm:p-4 rounded-lg">
               <div className="flex items-start gap-2">
-                <CheckCircle size={18} className="text-emerald-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-emerald-800">سيتم إغلاق الطلب</p>
-                  <p className="text-sm text-emerald-700 mt-1">
-                    عند تحديث الحالة إلى "مكتمل"، سيتم:
-                    <ul className="list-disc list-inside mt-1 space-y-1">
-                      <li>تسجيل وقت إتمام العمل تلقائياً</li>
-                      <li>إشعار العميل بإتمام الصيانة</li>
-                      <li>إرسال استبيان تقييم للعميل</li>
-                      <li>تحديث سجل المصعد</li>
-                    </ul>
+                <CheckCircle size={16} className="text-emerald-600 flex-shrink-0 mt-0.5 sm:w-5 sm:h-5" />
+                <div className="min-w-0">
+                  <p className="font-medium text-emerald-800 text-sm sm:text-base">سيتم إغلاق الطلب</p>
+                  <p className="text-xs sm:text-sm text-emerald-700 mt-1">
+                    سيتم تسجيل وقت إتمام العمل وإشعار العميل
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {selectedStatus === 'CANCELLED' && (
-            <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
-              <div className="flex items-start gap-2">
-                <AlertCircle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-red-800">سيتم إلغاء الطلب</p>
-                  <p className="text-sm text-red-700 mt-1">
-                    عند إلغاء الطلب، سيتم:
-                    <ul className="list-disc list-inside mt-1 space-y-1">
-                      <li>إشعار العميل بإلغاء الطلب</li>
-                      <li>إطلاق الفني المعين (إذا كان معيناً)</li>
-                      <li>تسجيل سبب الإلغاء في التقرير</li>
-                    </ul>
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">
+          <div className="flex gap-2 sm:gap-3 justify-end pt-3 sm:pt-4 border-t border-gray-200">
             <Button
               variant="outline"
               onClick={() => {
@@ -871,6 +790,7 @@ const Requests = () => {
                 setRequestToUpdateStatus(null);
                 setSelectedStatus('');
               }}
+              className="text-sm"
             >
               إلغاء
             </Button>
@@ -878,7 +798,7 @@ const Requests = () => {
               variant="primary"
               onClick={handleUpdateStatus}
               disabled={!selectedStatus || selectedStatus === requestToUpdateStatus?.status}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+              className="bg-gray-900 hover:bg-gray-800 text-sm"
             >
               تحديث الحالة
             </Button>
@@ -886,6 +806,7 @@ const Requests = () => {
         </div>
       </Modal>
 
+      {/* Details Modal */}
       {selectedRequest && (
         <Modal
           isOpen={showDetailsModal}
@@ -901,15 +822,15 @@ const Requests = () => {
               <Loading size="md" />
             </div>
           ) : (
-            <div className="space-y-6">
-              <Card className="shadow-sm">
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h3 className="font-bold text-xl text-gray-900">
+            <div className="space-y-4 sm:space-y-6">
+              <Card>
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-lg sm:text-xl text-gray-900 truncate">
                         {selectedRequest.referenceNumber}
                       </h3>
-                      <div className="flex gap-2 mt-2">
+                      <div className="flex flex-wrap gap-2 mt-2">
                         <Badge variant={getStatusColor(selectedRequest.status)}>
                           {getStatusArabic(selectedRequest.status)}
                         </Badge>
@@ -918,76 +839,59 @@ const Requests = () => {
                         </Badge>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-500">تاريخ الإنشاء</p>
-                      <p className="font-medium text-gray-900">{formatDateTime(selectedRequest.createdAt)}</p>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-xs sm:text-sm text-gray-500">تاريخ الإنشاء</p>
+                      <p className="font-medium text-gray-900 text-sm sm:text-base">
+                        {formatDateTime(selectedRequest.createdAt)}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <h4 className="font-bold text-gray-900 border-b pb-2">معلومات العميل</h4>
-                      <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                    <div className="space-y-3 sm:space-y-4">
+                      <h4 className="font-bold text-gray-900 border-b pb-2 text-sm sm:text-base">معلومات العميل</h4>
+                      <div className="space-y-2 sm:space-y-3">
                         <div className="flex items-center gap-2">
-                          <User size={16} className="text-gray-400" />
-                          <div>
-                            <p className="font-medium text-gray-900">
+                          <User size={14} className="text-gray-400 sm:w-4 sm:h-4 flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-gray-900 text-sm sm:text-base truncate">
                               {selectedRequest.client?.user?.fullName || selectedRequest.clientName}
                             </p>
-                            <p className="text-sm text-gray-500">العميل</p>
+                            <p className="text-xs sm:text-sm text-gray-500">العميل</p>
                           </div>
                         </div>
 
                         {selectedRequest.client?.user?.phoneNumber && (
                           <div className="flex items-center gap-2">
-                            <Phone size={16} className="text-gray-400" />
-                            <div>
-                              <p className="font-medium text-gray-900">
+                            <Phone size={14} className="text-gray-400 sm:w-4 sm:h-4 flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-gray-900 text-sm sm:text-base">
                                 {selectedRequest.client.user.phoneNumber}
                               </p>
-                              <p className="text-sm text-gray-500">رقم الهاتف</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {selectedRequest.client?.user?.email && (
-                          <div className="flex items-center gap-2">
-                            <Mail size={16} className="text-gray-400" />
-                            <div>
-                              <p className="font-medium text-gray-900 truncate">
-                                {selectedRequest.client.user.email}
-                              </p>
-                              <p className="text-sm text-gray-500">البريد الإلكتروني</p>
+                              <p className="text-xs sm:text-sm text-gray-500">رقم الهاتف</p>
                             </div>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <h4 className="font-bold text-gray-900 border-b pb-2">معلومات المصعد</h4>
-                      <div className="space-y-3">
+                    <div className="space-y-3 sm:space-y-4">
+                      <h4 className="font-bold text-gray-900 border-b pb-2 text-sm sm:text-base">معلومات المصعد</h4>
+                      <div className="space-y-2 sm:space-y-3">
                         <div>
-                          <p className="font-medium text-gray-900">
+                          <p className="font-medium text-gray-900 text-sm sm:text-base truncate">
                             {selectedRequest.elevator?.modelNumber || selectedRequest.elevatorModel}
                           </p>
-                          <p className="text-sm text-gray-500">رقم الموديل</p>
-                        </div>
-
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {selectedRequest.elevator?.serialNumber || selectedRequest.elevatorSerial}
-                          </p>
-                          <p className="text-sm text-gray-500">الرقم التسلسلي</p>
+                          <p className="text-xs sm:text-sm text-gray-500">رقم الموديل</p>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <MapPin size={16} className="text-gray-400" />
-                          <div>
-                            <p className="font-medium text-gray-900">
+                          <MapPin size={14} className="text-gray-400 sm:w-4 sm:h-4 flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-gray-900 text-sm sm:text-base truncate">
                               {selectedRequest.elevator?.locationAddress || selectedRequest.locationAddress}
                             </p>
-                            <p className="text-sm text-gray-500">العنوان</p>
+                            <p className="text-xs sm:text-sm text-gray-500">العنوان</p>
                           </div>
                         </div>
                       </div>
@@ -995,136 +899,24 @@ const Requests = () => {
                   </div>
 
                   {selectedRequest.description && (
-                    <div className="mt-6 pt-6 border-t border-gray-200">
-                      <h4 className="font-bold text-gray-900 mb-3">وصف المشكلة</h4>
-                      <p className="text-gray-600 bg-gray-50 p-4 rounded-lg">
+                    <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200">
+                      <h4 className="font-bold text-gray-900 mb-2 sm:mb-3 text-sm sm:text-base">وصف المشكلة</h4>
+                      <p className="text-gray-600 bg-gray-50 p-3 sm:p-4 rounded-lg text-xs sm:text-sm">
                         {selectedRequest.description}
-                      </p>
-                    </div>
-                  )}
-
-                  {selectedRequest.accessDetails && (
-                    <div className="mt-4">
-                      <h4 className="font-bold text-gray-900 mb-3">تفاصيل الوصول</h4>
-                      <p className="text-gray-600 bg-gray-50 p-4 rounded-lg">
-                        {selectedRequest.accessDetails}
                       </p>
                     </div>
                   )}
                 </div>
               </Card>
 
-              {selectedRequest.assignedTechnician && (
-                <Card className="shadow-sm">
-                  <div className="p-6">
-                    <h4 className="font-bold text-gray-900 mb-4">الفني المعين</h4>
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center">
-                        <span className="font-bold text-white text-xl">
-                          {selectedRequest.assignedTechnician.user?.fullName?.charAt(0) || 'ف'}
-                        </span>
-                      </div>
-                      <div className="flex-1">
-                        <h5 className="font-bold text-gray-900">
-                          {selectedRequest.assignedTechnician.user?.fullName || selectedRequest.technicianName}
-                        </h5>
-                        <div className="flex items-center gap-4 mt-2">
-                          {selectedRequest.assignedTechnician.user?.phoneNumber && (
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <Phone size={14} className="text-gray-400" />
-                              <span>{selectedRequest.assignedTechnician.user.phoneNumber}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <MapPin size={14} className="text-gray-400" />
-                            <span>
-                              {selectedRequest.assignedTechnician.currentLocationLat &&
-                                selectedRequest.assignedTechnician.currentLocationLng ? (
-                                <a
-                                  href={`https://maps.google.com/?q=${selectedRequest.assignedTechnician.currentLocationLat},${selectedRequest.assignedTechnician.currentLocationLng}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                                >
-                                  <Navigation size={12} />
-                                  عرض الموقع
-                                </a>
-                              ) : 'غير متاح'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-200">
-                      {selectedRequest.assignedAt && (
-                        <div>
-                          <p className="text-sm text-gray-500">تم التعيين</p>
-                          <p className="font-medium text-gray-900">{formatDateTime(selectedRequest.assignedAt)}</p>
-                        </div>
-                      )}
-
-                      {selectedRequest.startedAt && (
-                        <div>
-                          <p className="text-sm text-gray-500">بداية العمل</p>
-                          <p className="font-medium text-gray-900">{formatDateTime(selectedRequest.startedAt)}</p>
-                        </div>
-                      )}
-
-                      {selectedRequest.completedAt && (
-                        <div>
-                          <p className="text-sm text-gray-500">إتمام العمل</p>
-                          <p className="font-medium text-gray-900">{formatDateTime(selectedRequest.completedAt)}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              )}
-
-              {selectedRequest.contract && (
-                <Card className="shadow-sm">
-                  <div className="p-6">
-                    <h4 className="font-bold text-gray-900 mb-4">معلومات العقد</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-500">رقم العقد</p>
-                        <p className="font-medium text-gray-900">{selectedRequest.contract.contractNumber}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">نوع العقد</p>
-                        <p className="font-medium text-gray-900">{selectedRequest.contract.contractType}</p>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              )}
-
-              {selectedRequest.report && (
-                <Card className="shadow-sm">
-                  <div className="p-6">
-                    <h4 className="font-bold text-gray-900 mb-4">تقرير الصيانة</h4>
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm text-gray-500">نوع المشكلة</p>
-                        <p className="font-medium text-gray-900">{selectedRequest.report.problemType}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">الوقت المستغرق</p>
-                        <p className="font-medium text-gray-900">{selectedRequest.report.timeSpentMinutes} دقيقة</p>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              )}
-
-              <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">
+              <div className="flex gap-2 sm:gap-3 justify-end pt-3 sm:pt-4 border-t border-gray-200">
                 <Button
                   variant="outline"
                   onClick={() => {
                     setShowDetailsModal(false);
                     setSelectedRequest(null);
                   }}
+                  className="text-sm"
                 >
                   إغلاق
                 </Button>
@@ -1136,22 +928,10 @@ const Requests = () => {
                       setShowDetailsModal(false);
                       handleOpenAssignModal(selectedRequest);
                     }}
+                    className="bg-gray-900 hover:bg-gray-800 text-sm"
                   >
-                    <User size={16} className="mr-2" />
+                    <User size={14} className="ml-1 sm:ml-2 sm:w-4 sm:h-4" />
                     تعيين فني
-                  </Button>
-                )}
-
-                {['ASSIGNED', 'ON_WAY', 'IN_PROGRESS'].includes(selectedRequest.status) && (
-                  <Button
-                    variant="primary"
-                    onClick={() => {
-                      setShowDetailsModal(false);
-                      handleOpenStatusModal(selectedRequest);
-                    }}
-                  >
-                    <Clock size={16} className="mr-2" />
-                    تحديث الحالة
                   </Button>
                 )}
               </div>
