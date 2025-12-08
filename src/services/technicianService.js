@@ -3,7 +3,7 @@ import apiClient from './apiClient';
 export const technicianService = {
   // Manager Routes
   getAllTechnicians: (params) => apiClient.get('/technicians', { params }),
-  getAvailableTechnicians: () => apiClient.get('/technicians/available'),
+  getAvailableTechnicians: () => apiClient.get('/technicians'),
   getTechnicianById: (id) => apiClient.get(`/technicians/${id}`),
   getTechnicianPerformance: (id) => apiClient.get(`/technicians/${id}/performance`),
   addTechnician: (data) => apiClient.post('/technicians', data),

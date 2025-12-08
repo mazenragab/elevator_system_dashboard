@@ -394,14 +394,14 @@ const Requests = () => {
         subtitle="إدارة ومتابعة طلبات صيانة المصاعد"
         actions={
           <div className="flex flex-wrap gap-3">
-            <Button
+            {/* <Button
               variant="primary"
               onClick={() => setShowAddModal(true)}
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
             >
               <Plus size={18} className="mr-2" />
               طلب جديد
-            </Button>
+            </Button> */}
           </div>
         }
       />
