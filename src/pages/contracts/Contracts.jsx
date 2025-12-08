@@ -197,12 +197,13 @@ const Contracts = () => {
     setSelectedContract(contract);
     setLoadingDetails(true);
     setSelectedContractDetails(null);
+    setShowDetailsModal(true); // فتح الـ modal أولاً
     
     try {
       await fetchContractById(contract.id);
-      setShowDetailsModal(true);
     } catch (err) {
       showToast('فشل تحميل تفاصيل العقد', 'error');
+      setShowDetailsModal(false); // إغلاق الـ modal في حالة الخطأ
     } finally {
       setLoadingDetails(false);
     }
@@ -230,7 +231,8 @@ const Contracts = () => {
       showToast('تم حذف العقد بنجاح', 'success');
       setShowConfirmDeleteModal(false);
       setContractToDelete(null);
-      fetchContracts();
+      // إعادة تحميل البيانات
+      await fetchContracts(filters);
     } catch (err) {
       showToast(err.message || 'فشل حذف العقد', 'error');
     } finally {
@@ -256,7 +258,8 @@ const Contracts = () => {
       await createContract(formattedData);
       showToast('تم إضافة العقد بنجاح', 'success');
       setShowAddModal(false);
-      fetchContracts();
+      // إعادة تحميل البيانات
+      await fetchContracts(filters);
     } catch (err) {
       setAddContractError(err.message || 'فشل إضافة العقد');
       showToast(err.message || 'فشل إضافة العقد', 'error');
@@ -278,7 +281,8 @@ const Contracts = () => {
       showToast('تم تحديث بيانات العقد بنجاح', 'success');
       setShowEditModal(false);
       setEditingContract(null);
-      fetchContracts();
+      // إعادة تحميل البيانات
+      await fetchContracts(filters);
     } catch (err) {
       showToast(err.message || 'فشل تحديث العقد', 'error');
     }
@@ -286,23 +290,29 @@ const Contracts = () => {
 
   // Load contract documents
   const handleLoadDocuments = async (contractId) => {
+    setSelectedContract(contracts.find(c => c.id === contractId));
+    setShowDocumentsModal(true); // فتح الـ modal أولاً
+    
     try {
       const result = await getContractDocuments(contractId);
       setDocuments(result || []);
-      setShowDocumentsModal(true);
     } catch (err) {
       showToast(err.message || 'فشل تحميل المستندات', 'error');
+      setShowDocumentsModal(false); // إغلاق الـ modal في حالة الخطأ
     }
   };
 
   // Load contract elevators
   const handleLoadElevators = async (contractId) => {
+    setSelectedContract(contracts.find(c => c.id === contractId));
+    setShowElevatorsModal(true); // فتح الـ modal أولاً
+    
     try {
       const result = await getContractElevators(contractId);
       setElevators(result);
-      setShowElevatorsModal(true);
     } catch (err) {
       showToast(err.message || 'فشل تحميل المصاعد', 'error');
+      setShowElevatorsModal(false); // إغلاق الـ modal في حالة الخطأ
     }
   };
 
@@ -334,7 +344,8 @@ const Contracts = () => {
           await activateContract(contract.id);
           showToast('تم تفعيل العقد بنجاح', 'success');
         }
-        fetchContracts();
+        // إعادة تحميل البيانات
+        await fetchContracts(filters);
       } catch (err) {
         showToast(err.message || `فشل ${action} العقد`, 'error');
       }
@@ -421,7 +432,7 @@ const Contracts = () => {
         const now = new Date();
         return endDate < now;
       }).length,
-      totalElevators: contracts.reduce((sum, contract) => sum + (contract._count?.contractElevators || 0), 0),
+      totalElevators: contracts.reduce((sum, contract) => sum + (contract.contractElevators.length || 0), 0),
       totalRequests: contracts.reduce((sum, contract) => sum + (contract._count?.maintenanceRequests || 0), 0),
       avgElevatorsPerContract: contracts.length > 0 ? 
         (contracts.reduce((sum, contract) => sum + (contract._count?.contractElevators || 0), 0) / contracts.length).toFixed(1) : 0
@@ -908,6 +919,7 @@ const Contracts = () => {
           isOpen={showDetailsModal}
           onClose={() => {
             setShowDetailsModal(false);
+            setSelectedContract(null);
             setSelectedContractDetails(null);
           }}
           title={`عقد ${selectedContract.contractNumber}`}
@@ -928,6 +940,7 @@ const Contracts = () => {
                   variant="outline"
                   onClick={() => {
                     setShowDetailsModal(false);
+                    setSelectedContract(null);
                     setSelectedContractDetails(null);
                   }}
                 >
@@ -959,6 +972,7 @@ const Contracts = () => {
           documents={documents}
           onClose={() => {
             setShowDocumentsModal(false);
+            setSelectedContract(null);
             setDocuments([]);
           }}
           onUpload={async (formData) => {
@@ -988,6 +1002,7 @@ const Contracts = () => {
           elevators={elevators}
           onClose={() => {
             setShowElevatorsModal(false);
+            setSelectedContract(null);
             setElevators([]);
           }}
         />
@@ -1142,7 +1157,7 @@ const ContractDetailsView = ({ contract }) => (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="text-center p-4 bg-blue-50 rounded-lg">
             <div className="text-2xl font-bold text-blue-600">
-              {contract._count?.contractElevators || 0}
+              {contract.contractElevators.length}
             </div>
             <p className="text-sm text-gray-600 mt-1">المصاعد المشمولة</p>
           </div>
@@ -1196,7 +1211,7 @@ const DeleteConfirmation = ({ contract, onConfirm, onCancel, isLoading }) => {
              contract.contractType === 'PREVENTIVE_ONLY' ? 'صيانة وقائية' :
              contract.contractType === 'ON_DEMAND' ? 'حسب الطلب' : contract.contractType}
           </span></div>
-          <div>المصاعد: <span className="font-medium">{contract._count?.contractElevators || 0}</span></div>
+          <div>المصاعد: <span className="font-medium">{contract.contractElevators.length}</span></div>
           <div>طلبات الصيانة: <span className="font-medium">{contract._count?.maintenanceRequests || 0}</span></div>
           <div>المتبقي: <span className="font-medium">{daysRemaining} يوم</span></div>
         </div>
@@ -1220,13 +1235,13 @@ const DeleteConfirmation = ({ contract, onConfirm, onCancel, isLoading }) => {
           variant="danger"
           onClick={onConfirm}
           disabled={isLoading || hasElevators || hasRequests}
-          className="bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800"
+          className="bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 min-w-[120px]"
         >
           {isLoading ? (
-            <>
-              <span className="animate-spin mr-2">⟳</span>
-              جاري الحذف...
-            </>
+            <div className="flex items-center justify-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+              <span>جاري الحذف...</span>
+            </div>
           ) : (
             'تأكيد الحذف'
           )}

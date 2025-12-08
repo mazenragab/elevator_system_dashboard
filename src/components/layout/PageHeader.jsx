@@ -7,19 +7,25 @@ const PageHeader = ({
   showBreadcrumb = true 
 }) => {
   return (
-    <div className="mb-8">
+    <div className="mb-4 sm:mb-6 md:mb-8">
       {showBreadcrumb && <Breadcrumb />}
       
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        {/* Title and Subtitle */}
+        <div className="flex-1 min-w-0">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 truncate">
+            {title}
+          </h1>
           {subtitle && (
-            <p className="text-gray-600 mt-1">{subtitle}</p>
+            <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-0.5 sm:mt-1 line-clamp-2">
+              {subtitle}
+            </p>
           )}
         </div>
         
+        {/* Actions */}
         {actions && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             {actions}
           </div>
         )}
