@@ -63,9 +63,11 @@ const Clients = () => {
   const [clientToDelete, setClientToDelete] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [addClientLoading, setAddClientLoading] = useState(false);
+  const [addClientSuccess, setAddClientSuccess] = useState(false);
   const [addClientError, setAddClientError] = useState(null);
   const [editingClient, setEditingClient] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
 
   // دالة البحث والفلترة المحلية
   const filteredClients = useMemo(() => {
@@ -161,7 +163,7 @@ const Clients = () => {
       setShowConfirmDeleteModal(false);
       setClientToDelete(null);
       // إعادة تحميل البيانات
-      fetchClients();
+      await fetchClients({ page: pagination.page, limit: pagination.limit });
     } catch (err) {
       showToast(err.message || 'فشل حذف العميل', 'error');
     } finally {
@@ -173,14 +175,26 @@ const Clients = () => {
   const handleAddClient = async (clientData) => {
     setAddClientLoading(true);
     setAddClientError(null);
+    setAddClientSuccess(false);
     
     try {
       await createClient(clientData);
+      
+      // إعادة تحميل بيانات العملاء مع نفس الصفحة
+      await fetchClients({ page: pagination.page, limit: pagination.limit });
+      
+      // عرض toast النجاح
       showToast('تم إضافة العميل بنجاح', 'success');
-      setShowAddModal(false);
+      setAddClientSuccess(true);
+      
+      // إرجاع true للإشارة إلى النجاح
+      return true;
     } catch (err) {
       setAddClientError(err.message || 'فشل إضافة العميل');
       showToast('فشل إضافة العميل', 'error');
+      
+      // إرجاع false للإشارة إلى الفشل
+      return false;
     } finally {
       setAddClientLoading(false);
     }
@@ -188,14 +202,31 @@ const Clients = () => {
 
   // دالة معالجة تحديث العميل
   const handleUpdateClient = async (id, clientData) => {
+    setUpdateLoading(true);
+    
     try {
       await updateClient(id, clientData);
+      
+      // إعادة تحميل بيانات العملاء
+      await fetchClients({ page: pagination.page, limit: pagination.limit });
+      
       showToast('تم تحديث بيانات العميل بنجاح', 'success');
       setShowEditModal(false);
       setEditingClient(null);
+      return true;
     } catch (err) {
       showToast(err.message || 'فشل تحديث العميل', 'error');
+      return false;
+    } finally {
+      setUpdateLoading(false);
     }
+  };
+
+  // دالة إغلاق نافذة الإضافة
+  const handleCloseAddModal = () => {
+    setShowAddModal(false);
+    setAddClientError(null);
+    setAddClientSuccess(false);
   };
 
   // دالة لتنسيق التاريخ
@@ -298,6 +329,11 @@ const Clients = () => {
         >
           <ChevronRight size={16} />
         </Button>
+        
+        {/* معلومات إضافية عن الصفحة */}
+        <div className="text-sm text-gray-500 mr-4">
+          صفحة {pagination.page} من {pagination.totalPages} • إجمالي {pagination.total} عميل
+        </div>
       </div>
     );
   };
@@ -603,9 +639,10 @@ const Clients = () => {
       {/* مودال إضافة عميل جديد */}
       <AddClientModal
         isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={handleCloseAddModal}
         onSubmit={handleAddClient}
         isLoading={addClientLoading}
+        success={addClientSuccess}
         error={addClientError}
       />
 
@@ -619,6 +656,7 @@ const Clients = () => {
           }}
           client={editingClient}
           onSubmit={handleUpdateClient}
+          isLoading={updateLoading}
         />
       )}
 
@@ -846,13 +884,13 @@ const Clients = () => {
           
           {(clientToDelete?._count?.elevators || 0) > 0 || 
            (clientToDelete?._count?.maintenanceRequests || 0) > 0 ||
-           (clientToDelete?._count?.contracts || 0) > 0 && (
+           (clientToDelete?._count?.contracts || 0) > 0 ? (
             <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-600 text-center">
                 ⚠️ لا يمكن حذف عميل لديه مصاعد أو طلبات أو عقود حالياً
               </p>
             </div>
-          )}
+          ) : null}
         </div>
       </Modal>
     </div>

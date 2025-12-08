@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { User, Mail, Phone, Lock, AlertCircle } from 'lucide-react';
+import { User, Mail, Phone, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../forms/Input';
 import Select from '../forms/Select';
+import Card from '../ui/Card';
 import { useToast } from '../../hooks/useToast';
 
-const AddClientModal = ({ isOpen, onClose, onSubmit, isLoading, error }) => {
+const AddClientModal = ({ isOpen, onClose, onSubmit, isLoading, success = false, error }) => {
   const { showToast } = useToast();
   const [formData, setFormData] = useState({
     email: '',
@@ -68,7 +69,7 @@ const AddClientModal = ({ isOpen, onClose, onSubmit, isLoading, error }) => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -86,7 +87,14 @@ const AddClientModal = ({ isOpen, onClose, onSubmit, isLoading, error }) => {
     };
     
     console.log('Sending data to API:', apiData);
-    onSubmit(apiData);
+    const result = await onSubmit(apiData);
+    
+    if (result) {
+      // النجاح: تأخير إغلاق الـmodal لرؤية رسالة النجاح
+      setTimeout(() => {
+        handleClose();
+      }, 2000);
+    }
   };
 
   const resetForm = () => {
@@ -121,140 +129,163 @@ const AddClientModal = ({ isOpen, onClose, onSubmit, isLoading, error }) => {
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="إضافة عميل جديد"
+      title={success ? "تم الإضافة بنجاح" : "إضافة عميل جديد"}
       size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-600 text-sm">{error}</p>
+        {/* عرض رسالة النجاح */}
+        {success && (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+              <CheckCircle className="w-10 h-10 text-emerald-600" />
+            </div>
+            <h3 className="text-xl font-bold text-emerald-900 mb-2">تمت الإضافة بنجاح!</h3>
+            <p className="text-emerald-700">
+              تم إضافة العميل <span className="font-bold">{formData.fullName}</span>
+            </p>
+            <p className="text-sm text-gray-500 mt-4 animate-pulse">يتم تحديث القائمة...</p>
           </div>
         )}
 
-        {/* تنبيه مهم */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-          <div className="flex items-start gap-2">
-            <AlertCircle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm text-amber-700 font-medium mb-1">مهم!</p>
-              <p className="text-xs text-amber-600">
-                سيتم إنشاء مستخدم جديد يمكنه تسجيل الدخول إلى النظام فوراً
-              </p>
+        {/* عرض رسالة الخطأ */}
+        {error && !success && (
+          <Card className="mb-6 border-red-200 bg-red-50">
+            <div className="flex items-center gap-3 p-4">
+              <AlertCircle className="text-red-600" size={20} />
+              <p className="text-red-700 text-sm">{error}</p>
             </div>
-          </div>
-        </div>
+          </Card>
+        )}
 
-        {/* معلومات الأساسية */}
-        <div className="space-y-4">
-          <Input
-            label="البريد الإلكتروني *"
-            name="email"
-            type="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            error={validationErrors.email}
-            leftIcon={<Mail size={18} />}
-            placeholder="client@example.com"
-          />
-          
-          <Input
-            label="الاسم الكامل *"
-            name="fullName"
-            value={formData.fullName}
-            onChange={handleChange}
-            required
-            error={validationErrors.fullName}
-            leftIcon={<User size={18} />}
-            placeholder="الاسم الكامل للعميل"
-          />
-          
-          <Input
-            label="رقم الهاتف *"
-            name="phoneNumber"
-            value={formData.phoneNumber}
-            onChange={handleChange}
-            required
-            error={validationErrors.phoneNumber}
-            leftIcon={<Phone size={18} />}
-            placeholder="01xxxxxxxxx"
-          />
-          
-          <Input
-            label="كلمة المرور *"
-            name="password"
-            type="password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            error={validationErrors.password}
-            leftIcon={<Lock size={18} />}
-            hint="كلمة المرور الافتراضية هي password123"
-          />
-          
-          <input
-            type="hidden"
-            name="userType"
-            value="CLIENT"
-          />
-          
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-700">
-              نوع المستخدم: <span className="font-bold">عميل (CLIENT)</span>
-            </p>
-          </div>
-        </div>
+        {/* إخفاء النموذج بعد النجاح */}
+        {!success && (
+          <>
+            {/* تنبيه مهم */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+              <div className="flex items-start gap-2">
+                <AlertCircle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm text-amber-700 font-medium mb-1">مهم!</p>
+                  <p className="text-xs text-amber-600">
+                    سيتم إنشاء مستخدم جديد يمكنه تسجيل الدخول إلى النظام فوراً
+                  </p>
+                </div>
+              </div>
+            </div>
 
-        {/* زر توليد بيانات نموذجية */}
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={generateSampleData}
-            className="text-xs text-gray-600"
-          >
-            توليد بيانات نموذجية
-          </Button>
-        </div>
+            {/* معلومات الأساسية */}
+            <div className="space-y-4">
+              <Input
+                label="البريد الإلكتروني *"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                error={validationErrors.email}
+                leftIcon={<Mail size={18} />}
+                placeholder="client@example.com"
+              />
+              
+              <Input
+                label="الاسم الكامل *"
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleChange}
+                required
+                error={validationErrors.fullName}
+                leftIcon={<User size={18} />}
+                placeholder="الاسم الكامل للعميل"
+              />
+              
+              <Input
+                label="رقم الهاتف *"
+                name="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={handleChange}
+                required
+                error={validationErrors.phoneNumber}
+                leftIcon={<Phone size={18} />}
+                placeholder="01xxxxxxxxx"
+              />
+              
+              <Input
+                label="كلمة المرور *"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                error={validationErrors.password}
+                leftIcon={<Lock size={18} />}
+                hint="كلمة المرور الافتراضية هي password123"
+              />
+              
+              <input
+                type="hidden"
+                name="userType"
+                value="CLIENT"
+              />
+              
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  نوع المستخدم: <span className="font-bold">عميل (CLIENT)</span>
+                </p>
+              </div>
+            </div>
 
-        {/* معلومات إضافية */}
-        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-          <h4 className="font-bold text-sm text-gray-700 mb-2">معلومات مهمة:</h4>
-          <ul className="text-xs text-gray-600 space-y-1">
-            <li>• سيتم إنشاء حساب عميل جديد في النظام</li>
-            <li>• يمكن للعميل تسجيل الدخول فوراً</li>
-            <li>• يمكن إضافة المصاعد والعقود لاحقاً</li>
-            <li>• كلمة المرور الافتراضية: password123</li>
-            <li>• * الحقول المطلوبة</li>
-          </ul>
-        </div>
+            {/* زر توليد بيانات نموذجية */}
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={generateSampleData}
+                className="text-xs text-gray-600"
+              >
+                توليد بيانات نموذجية
+              </Button>
+            </div>
 
-        <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClose}
-            disabled={isLoading}
-          >
-            إلغاء
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={isLoading}
-            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-          >
-            {isLoading ? (
-              <>
-                <span className="animate-spin mr-2">⟳</span>
-                جاري الإضافة...
-              </>
-            ) : (
-              'إضافة العميل'
-            )}
-          </Button>
-        </div>
+            {/* معلومات إضافية */}
+            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+              <h4 className="font-bold text-sm text-gray-700 mb-2">معلومات مهمة:</h4>
+              <ul className="text-xs text-gray-600 space-y-1">
+                <li>• سيتم إنشاء حساب عميل جديد في النظام</li>
+                <li>• يمكن للعميل تسجيل الدخول فوراً</li>
+                <li>• يمكن إضافة المصاعد والعقود لاحقاً</li>
+                <li>• كلمة المرور الافتراضية: password123</li>
+                <li>• * الحقول المطلوبة</li>
+              </ul>
+            </div>
+
+            <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                disabled={isLoading}
+              >
+                إلغاء
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={isLoading}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+              >
+                {isLoading ? (
+                  <>
+                    <span className="animate-spin mr-2">⟳</span>
+                    جاري الإضافة...
+                  </>
+                ) : (
+                  'إضافة العميل'
+                )}
+              </Button>
+            </div>
+          </>
+        )}
       </form>
     </Modal>
   );
