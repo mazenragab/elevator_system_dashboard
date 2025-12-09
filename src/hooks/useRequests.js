@@ -20,7 +20,7 @@ export const useRequests = () => {
       
       const response = await maintenanceService.getAllRequests(params);
       
-      if (response.data?.requests) {
+      if (response.data) {
         setRequests(response.data.requests || []);
         
         if (response.data?.pagination) {
