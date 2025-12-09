@@ -1,3 +1,4 @@
+// Modified useRequests.js
 import { useState, useEffect, useCallback } from 'react';
 import { maintenanceService } from '../services/maintenanceService';
 
@@ -8,7 +9,7 @@ export const useRequests = () => {
   const [pagination, setPagination] = useState({
     total: 0,
     page: 1,
-    limit: 10,
+    limit: 1000, // Increased limit to fetch all (assuming up to 100 is sufficient for 38 items)
     totalPages: 1
   });
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -18,7 +19,11 @@ export const useRequests = () => {
       setLoading(true);
       setError(null);
       
-      const response = await maintenanceService.getAllRequests(params);
+      // Always fetch with a high limit to get all data at once, ignoring page for front-end pagination
+      const fetchParams = { ...params, limit: params.limit || 100 };
+      delete fetchParams.page; // Remove page to fetch all in one go if backend supports it
+      
+      const response = await maintenanceService.getAllRequests(fetchParams);
       
       if (response.data) {
         setRequests(response.data.requests || []);
@@ -29,6 +34,14 @@ export const useRequests = () => {
             page: response.data.pagination.page,
             limit: response.data.pagination.limit,
             totalPages: response.data.pagination.totalPages
+          });
+        } else {
+          // If no pagination from backend, set based on fetched data
+          setPagination({
+            total: response.data.requests.length,
+            page: 1,
+            limit: response.data.requests.length,
+            totalPages: 1
           });
         }
       }
@@ -129,14 +142,13 @@ export const useRequests = () => {
     }
   };
 
+
   const updatePagination = (params) => {
-    fetchRequests({ 
-      page: params.page,
-      limit: pagination.limit,
-      status: filter,
-      priority: priorityFilter,
-      search: search
-    });
+    // Since pagination is now front-end only, just update local state without refetch
+    setPagination(prev => ({
+      ...prev,
+      page: params.page
+    }));
   };
 
   useEffect(() => {

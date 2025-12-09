@@ -33,7 +33,10 @@ const AssignTechnicianModal = ({
 
       try {
         setLoading(true);
-        const response = await technicianService.getAvailableTechnicians();
+        const response = await technicianService.getAllTechnicians({
+          limit:100,
+          page:1
+        });
         if (response.data) {
           const availableTechs = response.data || [];
           

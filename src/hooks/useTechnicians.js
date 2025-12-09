@@ -9,7 +9,7 @@ export const useTechnicians = () => {
   const [pagination, setPagination] = useState({
     total: 0,
     page: 1,
-    limit: 10,
+    limit: 1000,
     totalPages: 1
   });
   const [selectedTechnicianDetails, setSelectedTechnicianDetails] = useState(null);
