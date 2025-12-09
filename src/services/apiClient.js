@@ -1,7 +1,7 @@
 import axios from 'axios';
 const global_url = "https://elevator-system-mu.vercel.app/api/v1"
 const local_url = "http://localhost:3000/api/v1"
-const API_BASE_URL = local_url; // يمكنك التبديل بين العناوين حسب البيئة
+const API_BASE_URL = global_url; // يمكنك التبديل بين العناوين حسب البيئة
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
